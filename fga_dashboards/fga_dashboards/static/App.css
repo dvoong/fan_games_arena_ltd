@@ -2,9 +2,48 @@
     padding-top: 3em;
 }
 
-
 .plot-line {
     fill: none;
     stroke: #ffab00;
     stroke-width: 3;
+}
+
+.color-fill-0 {
+    fill: #ffab00;
+}
+
+.color-stroke-0 {
+    stroke: #ffab00;
+}
+
+.color-fill-1 {
+    fill: #7FFFD4;
+}
+
+.color-stroke-1 {
+    stroke: #7FFFD4;
+}
+
+.color-fill-2 {
+    fill: #CD5C5C;
+}
+
+.color-stroke-2 {
+    stroke: #CD5C5C;
+}
+
+.color-fill-3 {
+    fill: #9370DB;
+}
+
+.color-stroke-3 {
+    stroke: #9370DB;
+}
+
+.color-fill-4 {
+    fill: #2E8B57;
+}
+
+.color-stroke-4 {
+    stroke: #2E8B57;
 }

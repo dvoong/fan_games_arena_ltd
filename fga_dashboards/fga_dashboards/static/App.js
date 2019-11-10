@@ -4,43 +4,53 @@ import React from 'react';
 import { render } from 'react-dom';
 import  { DauChart, DauChartComponent } from "./DauChart";
 
-console.log("App.js");
 
 window.React = React;
 axios.defaults.xsrfCookieName = "csrf_token";
 axios.defaults.xsrfHeaderName = "X-CSRFTOKEN";
-
 
 class App extends React.Component {
 
     constructor(props){
         super(props);
         this.state = {
-            data: [
-                [new Date('2019-01-01'), 10],
-                [new Date('2019-01-02'), 15],
-                [new Date('2019-01-03'), 21],
-            ],
+            data: {dau: null,},
             dauChart: new DauChart(),
+            loading: true,
         };
-        console.log(this.state);
     }
 
     componentDidMount() {
-        console.log('componentDidMount');
-        const {data, dauChart} = this.state;
+        const {dauChart} = this.state;
         dauChart.initialise();
-        dauChart.draw(data);
+        axios.get("/api/get-data?start=2019-01-01")
+            .then(response => response.data)
+            .then(data => {
+                var data = {...data};
+                data.dau.values = data.dau.values.map(d => [new Date(d[0]), d[1], d[2]]);
+                return data;
+            })
+            .then(data => this.setState({data: data, loading: false}));
+    }
+
+    componentDidUpdate() {
+        const {data, dauChart} = this.state;
+        dauChart.draw(data.dau);
     }
     
     render() {
-        console.log("render");
-        const {data, dauChart} = this.state;
-        console.log(`data: ${data}`);
+        const {data, dauChart, loading} = this.state;
+
+        let loadingComponent = '';
+        if(loading == true){
+            loadingComponent= <h1>loading</h1>;
+        }
+        
         return (
             <div className="container main-container">
               <h1>Dashboards</h1>
-              <DauChartComponent data={data} dauChart={dauChart}/>
+              {loadingComponent}
+              <DauChartComponent dauChart={dauChart}/>
             </div>
         );
     }

@@ -38,6 +38,7 @@ def query_database(database, sql, *args, **kwargs):
     connection.add_output_converter(-155, handle_datetimeoffset)
     try:
         with connection.cursor() as cursor:
+            print(*args)
             cursor.execute(sql, *args, **kwargs)
             rows = cursor.fetchall()
             rows = [list(r) for r in rows]

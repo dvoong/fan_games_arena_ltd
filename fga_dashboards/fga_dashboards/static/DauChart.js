@@ -2,6 +2,7 @@ import {
     axisBottom as d3axisBottom,
     axisLeft as d3axisLeft,
     curveMonotoneX as d3curveMonotoneX,
+    legend as d3legend,
     line as d3line,
     min as d3min,
     max as d3max,
@@ -9,7 +10,12 @@ import {
     scaleLinear as d3scaleLinear,
     select as d3select
 } from "d3";
+import * as d3 from "d3";
 
+
+const unique = (value, index, self) => {
+  return self.indexOf(value) === index
+}
 
 class DauChart {
 
@@ -19,15 +25,8 @@ class DauChart {
     }
 
     initialise() {
-        console.log("initialise");
 	this.container = d3select(`#${this.containerId}`);
 	this.canvas = this.container.select(".canvas");
-	console.log(`container: ${this.container}`);
-	console.log(`canvas: ${this.canvas}`);
-    }
-
-    draw(data) {
-        console.log("draw");
         this.canvasWidth = parseInt(this.container.style('width'), 10);
         this.canvasHeight = this.canvasHeight;
         this.canvas.attr("width", this.canvasWidth)
@@ -46,58 +45,109 @@ class DauChart {
             `translate(${this.margins.left}, ${this.margins.top})`
         );
 
-        this.xScale = d3scaleTime()
-            .range([0, this.plotAreaWidth])
-            .domain(
-                [
-                    d3min(data, (x) => x[0]),
-                    d3max(data, (x) => x[0])
-                ]
-            );
+        this.xScale = d3scaleTime();
+        this.yScale = d3scaleLinear();
 
-        console.log(this.xScale);
-        
-        this.yScale = d3scaleLinear()
-            .range([this.plotAreaHeight, 0])
-            .domain(
-                [
-                    d3min(data, (x) => x[1]),
-                    d3max(data, (x) => x[1])
-                ]
-            );
+        this.xAxis = d3axisBottom(this.xScale);
+        this.yAxis = d3axisLeft(this.yScale);
+        this.xAxisElement = this.plotArea.append('g')
+            .attr('transform', `translate(0, ${this.plotAreaHeight})`);
+        this.yAxisElement = this.plotArea.append('g');
 
         this.valueline = d3line()
             .x(d => this.xScale(d[0]))
-            .y(d => this.yScale(d[1]))
+            .y(d => this.yScale(d[2]))
             .curve(d3curveMonotoneX);
 
-        this.plotArea.append("path")
-            .data([data]) 
-            .attr("class", "plot-line")  
-            .attr("d", this.valueline);
+	this.legend = this.canvas.append("g")
+	    .attr("class","legend")
+	    .attr("transform","translate(50,30)")
+	    .style("font-size","12px")
+    }
 
-        this.xAxis = d3axisBottom(this.xScale);
-        this.plotArea.append('g')
-            .attr('transform', `translate(0, ${this.plotAreaHeight})`)
-            .call(this.xAxis);
+    draw(data) {
+        this.xScale
+            .domain(
+                [
+                    d3min(data.values, (x) => x[0]),
+                    d3max(data.values, (x) => x[0])
+                ]
+            )
+            .range([0, this.plotAreaWidth]);
+            
+        this.yScale
+            .domain(
+                [
+                    d3min(data.values, (x) => x[2]),
+                    d3max(data.values, (x) => x[2])
+                ]
+            )
+            .range([this.plotAreaHeight, 0]);
+        
+        this.xAxisElement.call(this.xAxis);
+        this.yAxisElement.call(this.yAxis);
 
-        this.yAxis = d3axisLeft(this.yScale);
-        this.plotArea.append('g')
-            .call(this.yAxis);
+        this.plotArea.select(".plot-line")
+            .remove();
 
-        this.plotArea.selectAll(".dot")
-            .data(data)
-            .enter()
-            .append("circle") 
-            .attr("class", "dot") 
-            .attr("cx", d => this.xScale(d[0]))
-            .attr("cy", d => this.yScale(d[1]))
-            .attr("r", 2);
+	let clients = data.values.map(d => d[1]);
+	clients = clients.filter(unique)
+
+	clients.map(
+	    (client, i) => {
+		let values = data.values.filter(d => d[1] == client);
+		let colorIndex = i % 5;
+
+		this.plotArea.append("path")
+		    .data([values]) 
+		    .attr("class", `plot-line ${client} color-stroke-${colorIndex}`)  
+		    .attr("d", this.valueline);
+		
+		this.plotArea.selectAll(`.dot .${client}`)
+		    .data(values)
+		    .enter()
+		    .append("circle") 
+		    .attr("class", `dot ${client}`)
+		    .attr("cx", d => this.xScale(d[0]))
+		    .attr("cy", d => this.yScale(d[2]))
+		    .attr("r", 2);
+	    }
+	);
+
+	let s = this.legend
+	    .selectAll(".legend-item")
+	    .data(clients)
+	
+	let legendItems = s.enter()
+	    .append("g")
+	    .attr("class", "legend-item")
+	    .attr("transform", "translate(15, 0)");
+
+	legendItems
+	    .append("circle")
+	    .attr("class", (d, i)=>{
+		let colorIndex = i % 5;
+		return `color-fill-${colorIndex}`;
+	    })
+	    .attr("cy", (d, i)=>i*15)
+	    .attr("r", 2)
+
+	legendItems
+	    .append("text")
+	    .attr("class", (d, i)=>{
+		let colorIndex = i % 5;
+		return `color-fill-${colorIndex}`;
+	    })
+	    .attr("x", 15)
+	    .attr("y", (d, i)=>i*15)
+	    .html(d => d);
+
+	s.exit().remove();
         
     }
 }
 
-const DauChartComponent = ({data, dauChart}) => {
+const DauChartComponent = ({dauChart}) => {
 
     return (
         <div className="chart-container" id={dauChart.containerId}>

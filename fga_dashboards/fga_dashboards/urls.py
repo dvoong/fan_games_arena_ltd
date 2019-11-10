@@ -19,6 +19,7 @@ from fga_dashboards import views
 
 urlpatterns = [
     path('', views.index, name='index'),
+    path('api/get-data', views.get_data, name='get_data'),
     path('accounts/', include('accounts.urls')),    
     path('admin/', admin.site.urls),
     path('home/', views.home, name='home'),
