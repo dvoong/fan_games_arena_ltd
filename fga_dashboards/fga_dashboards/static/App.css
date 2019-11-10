@@ -1,3 +1,7 @@
+.hidden {
+    display: none;
+}
+
 .main-container {
     padding-top: 3em;
 }
