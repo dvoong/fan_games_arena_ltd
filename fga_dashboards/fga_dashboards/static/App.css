@@ -1,0 +1,10 @@
+.main-container {
+    padding-top: 3em;
+}
+
+
+.plot-line {
+    fill: none;
+    stroke: #ffab00;
+    stroke-width: 3;
+}

@@ -1,0 +1,12 @@
+{% load static %}
+
+<html>
+  <head>
+    <script src='{% static "dist/vendors.bundle.js" %}'></script>
+    <link rel="stylesheet" type="text/css" href="{% static 'App.css' %}">
+  </head>
+  <body>
+    <div class="react-container" id="react-container"></div>
+    <script src='{% static "dist/App.bundle.js" %}'></script>
+  </body>
+</html>
