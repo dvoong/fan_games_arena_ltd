@@ -1,6 +1,7 @@
 import datetime, os, struct
-import bcrypt, pandas as pd, pyodbc, sqlalchemy
+import bcrypt, pandas as pd, pyodbc, redis, sqlalchemy
 import flask_login
+from celery import Celery
 from flask import Flask, request
 from flask_login import current_user, login_required, LoginManager
 from flask_wtf.csrf import CSRFProtect, generate_csrf
@@ -33,6 +34,11 @@ app.config['DATABASE'] = os.environ.get(
 )
 app.config['DATABASE_ENGINE'] = sqlalchemy.create_engine(app.config['DATABASE'])
 app.config['WTF_CSRF_ENABLED'] = False if app.config['ENV'] == 'test' else True
+app.config['CELERY_BACKEND'] = os.environ.get('CELERY_BACKEND', 'redis://localhost')
+app.config['CELERY_BROKER'] = os.environ.get('CELERY_BROKER', 'redis://localhost')
+
+# celery app
+celery = Celery(backend=app.config['CELERY_BACKEND'], broker=app.config['CELERY_BROKER'])
 
 login_manager = LoginManager()
 login_manager.init_app(app)
@@ -158,7 +164,7 @@ def logout_user():
 
 @app.route('/api/populate-database', methods=['POST'])
 def populate_database():
-    task_status = get_task_status()
+    task_status = get_task_status('populate_database')
     if task_status == 'SUCCESS':
         session = get_db()
         existing_task = session.query(EtlTask).get('populate_database')
@@ -174,8 +180,10 @@ def populate_database():
         task_status = populate_database_task.delay()
         session.commit()
     elif task_status == 'RUNNING':
-        pass
+        return {'status': 200, 'message': 'populate_database task currently running'}
+    return {'status': 200, 'message': 'started populate_database task'}
 
+@celery.task
 def populate_database_task():
     pass
     

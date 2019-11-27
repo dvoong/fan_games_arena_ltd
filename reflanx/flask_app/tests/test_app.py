@@ -16,7 +16,7 @@ class TestPopulateDatabase(TestCase):
         get_task_status.return_value = None
         mock_datetime.datetime.now.return_value = datetime.datetime(2019, 1, 1, 1)
         with app.app.app_context():
-            app.populate_database()
+            response = app.populate_database()
             session = get_db()
             tasks = session.query(EtlTask).all()
 
@@ -24,7 +24,6 @@ class TestPopulateDatabase(TestCase):
         self.assertEqual(tasks[0].status, 'RUNNING')
         self.assertEqual(tasks[0].timestamp, datetime.datetime(2019, 1, 1, 1))
         populate_database_task.delay.assert_called_once()
-
 
     @patch('app.datetime')
     @patch('app.get_task_status')
@@ -91,24 +90,38 @@ class TestPopulateDatabase(TestCase):
     def test_functional(self):
         client = app.app.test_client()
         response = client.post('/api/populate-database')
-        self.assertEqual(response, {'status': 200, 'message': 'started populate_database task'})
+        self.assertEqual(
+            response.json,
+            {'status': 200, 'message': 'started populate_database task'}
+        )
+
         # task still running
         response = client.post('/api/populate-database')
         self.assertEqual(
-            response,
+            response.json,
             {
                 'status': 200,
                 'message': 'populate_database task currently running'
             }
         )
+
         # task finishes
-        session = get_db()
-        existing_task = session.query(EtlTask).get('populate_database')
-        session.delete(existing_task)
-        task = EtlTask(
-            name='populate_database',
-            status='SUCCESS',
-            timestamp=datetime.datetime.now()
+        with app.app.app_context():
+            session = get_db()
+            existing_task = session.query(EtlTask).get('populate_database')
+            session.delete(existing_task)
+            task = EtlTask(
+                name='populate_database',
+                status='SUCCESS',
+                timestamp=datetime.datetime.now()
+            )
+            session.add(task)
+            session.commit()
+
+        # rerun task
+        client = app.app.test_client()
+        response = client.post('/api/populate-database')
+        self.assertEqual(
+            response.json,
+            {'status': 200, 'message': 'started populate_database task'}
         )
-        session.add(task)
-        
