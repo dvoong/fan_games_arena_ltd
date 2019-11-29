@@ -28,3 +28,8 @@ class TestGetDatawarehouseConnection(TestCase):
         self.assertEqual(connection, psycopg2.connect.return_value)
         psycopg2.connect.assert_called_once_with(app.app.config['DATAWAREHOUSE_URI'])
 
+
+class TestQueryGameDatabase(TestCase):
+
+    def test(self):
+        self.assertTrue(False)

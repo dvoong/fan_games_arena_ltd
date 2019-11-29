@@ -58,14 +58,12 @@ CSRFProtect(app)
 
 models.Base.metadata.create_all(app.config['DATABASE_ENGINE'])
 
-
 @app.route('/check-login-status')
 def check_login_status():
     return {
         'loginStatus': 'logged in' if current_user.is_authenticated else 'logged out',
         'csrftoken': generate_csrf(),
     }
-
 
 @app.route('/extract-game-data', methods=['GET', 'POST'])
 @login_required
@@ -135,7 +133,6 @@ def extract_game_data():
     df = pd.DataFrame(rows, columns=columns)
     df.to_sql('devices', engine, if_exists='replace', index=False)
 
-    
     return {'status': 200}
 
 @app.route('/get-dau-data', methods=['GET'])
@@ -170,7 +167,7 @@ def logout_user():
     flask_login.logout_user()
     return {'status': 200}
 
-@app.route('/api/populate-database', methods=['POST'])
+@app.route('/populate-database', methods=['GET', 'POST'])
 def populate_database():
     task_status = get_task_status('populate_database')
     if task_status == 'SUCCESS':

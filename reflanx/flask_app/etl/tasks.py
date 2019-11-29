@@ -1,5 +1,6 @@
 import datetime
 import db
+import models
 from flask import current_app
 from db import query_game_database
 
@@ -53,4 +54,14 @@ def populate_table(table):
     }
 
 def set_task_status(task_name, status):
-    pass
+    timestamp = datetime.datetime.now()
+    session = db.get_db()
+    task = session.query(models.EtlTask).get(task_name)
+    if task is None:
+        task = models.EtlTask(name=task_name, status=status, timestamp=timestamp)
+    else:
+        task.status = status
+        task.timestamp = timestamp
+    session.add(task)
+    session.commit()
+    return True

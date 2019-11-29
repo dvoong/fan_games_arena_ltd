@@ -2,6 +2,7 @@ import app
 import datetime
 import db
 import etl.tasks
+import models
 import pandas as pd
 from pandas.testing import assert_frame_equal
 from unittest.mock import Mock, patch
@@ -105,3 +106,33 @@ class TestPopulateTable(TestCase):
                 'time_taken': datetime.timedelta(hours=1),
             }
         )
+
+
+class TestSetTaskStatus(TestCase):
+
+    def test_creates_new_task(self):
+
+        with app.app.app_context():
+            success = etl.tasks.set_task_status('task_name', 'task_status')
+
+            session = db.get_db()
+            task = session.query(models.EtlTask).get('task_name')
+            self.assertEqual(task.status, 'task_status')
+            self.assertEqual(success, True)
+
+    @patch('etl.tasks.datetime')
+    def test_updates_task(self, mock_datetime):
+
+        with app.app.app_context():
+            
+            ts = datetime.datetime(2019, 1, 1, 1)
+            mock_datetime.datetime.now.return_value = ts
+            task = models.EtlTask(name='task_name', status='initial_status')
+            
+            success = etl.tasks.set_task_status('task_name', 'current_status')
+
+            session = db.get_db()
+            task = session.query(models.EtlTask).get('task_name')
+            self.assertEqual(task.status, 'current_status')
+            self.assertEqual(task.timestamp, ts)
+            self.assertEqual(len(session.query(models.EtlTask).all()), 1)
