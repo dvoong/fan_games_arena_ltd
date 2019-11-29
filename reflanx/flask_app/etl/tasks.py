@@ -12,6 +12,11 @@ def extract_table(table):
     data = query_game_database(database, sql)
     return data
 
+def get_task_status(name):
+    session = db.get_db()
+    task = session.query(models.EtlTask).get(name)
+    return None if task is None else task.status
+
 def insert_table(data, table):
     engine = db.get_datawarehouse_alchemy_engine()
     return data.to_sql(table, engine, index=False)

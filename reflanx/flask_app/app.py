@@ -10,7 +10,6 @@ import db
 import etl, models
 import etl.tasks
 from db import get_db
-from etl import get_task_status
 from models import DauDashboardData, EtlTask, User
 
 
@@ -138,7 +137,9 @@ def extract_game_data():
 @app.route('/get-dau-data', methods=['GET'])
 @login_required
 def get_dau_data():
-    values = DauDashboardData.query.all()
+    session = db.get_db()
+    query = session.query(models.EtlTask)
+    values = [v for v in query.values()]
     columns = DauDashboardData.__table__.columns.keys()
     return {
         'headers': columns,
@@ -169,7 +170,7 @@ def logout_user():
 
 @app.route('/populate-database', methods=['GET', 'POST'])
 def populate_database():
-    task_status = get_task_status('populate_database')
+    task_status = etl.tasks.get_task_status('populate_database')
     if task_status == 'SUCCESS':
         session = get_db()
         existing_task = session.query(EtlTask).get('populate_database')
