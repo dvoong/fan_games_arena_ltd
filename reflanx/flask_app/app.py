@@ -6,7 +6,9 @@ from flask import Flask, request
 from flask_login import current_user, login_required, LoginManager
 from flask_wtf.csrf import CSRFProtect, generate_csrf
 
+import db
 import etl, models
+import etl.tasks
 from db import get_db
 from etl import get_task_status
 from models import DauDashboardData, EtlTask, User
@@ -14,8 +16,12 @@ from models import DauDashboardData, EtlTask, User
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = '6d7566e2-cfed-4709-8d11-080dc1b4d044'
-db_uri = 'postgresql+psycopg2://fga_dashboards@localhost/fga_dashboards'
-app.config["SQLALCHEMY_DATABASE_URI"] = db_uri
+app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get(
+    'SQLALCHEMY_DATABASE_URI',
+    'postgresql+psycopg2://fga_dashboards@localhost/fga_dashboards' \
+    if app.config['ENV'] != 'test' \
+    else 'postgresql+psycopg2://test_fga_dashboards@localhost/test_fga_dashboards'
+)
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['GAME_DATABASE_HOST'] = os.environ['DATABASE_HOST']
 app.config['GAME_DATABASE_PASSWORD'] = os.environ['DATABASE_PASSWORD']
@@ -23,9 +29,10 @@ app.config['GAME_DATABASE_USER'] = os.environ['DATABASE_USER']
 app.config['GAME_LOGS_DATABASE'] = os.environ['LOGS_DATABASE']
 app.config['GAME_USER_DATABASE'] = os.environ['USERS_DATABASE']
 app.config['GAME_QUIZGAMES_DATABASE'] = os.environ['QUIZGAMES_DATABASE']
-app.config['DATA_WAREHOUSE_URI'] = os.environ.get(
-    'DATA_WAREHOUSE_URI',
-    'postgresql://fga_dashboards@localhost/fga_data_warehouse'
+app.config['DATAWAREHOUSE_URI'] = os.environ.get(
+    'DATAWAREHOUSE_URI',
+    'postgresql://fga_datawarehouse@localhost/fga_datawarehouse' if app.config['ENV'] != 'test' \
+    else 'postgresql://test_fga_datawarehouse@localhost/test_fga_datawarehouse'
 )
 app.config['DATABASE'] = os.environ.get(
     'DATABASE',
@@ -44,7 +51,8 @@ login_manager = LoginManager()
 login_manager.init_app(app)
 @login_manager.user_loader
 def load_user(user_id):
-    return User.query.get(user_id)
+    session = db.get_db()
+    return session.query(User).get(user_id)
 
 CSRFProtect(app)
 
@@ -145,7 +153,8 @@ def get_dau_data():
 def login_user():
     username = request.json.get('username')
     password = request.json.get('password')
-    user = User.query.filter_by(username=username).first()
+    session = db.get_db()
+    user = session.query(User).filter(User.username==username).first()
     if user:
         hashed_password = user.password
         is_authenticated = bcrypt.checkpw(
@@ -185,7 +194,9 @@ def populate_database():
 
 @celery.task
 def populate_database_task():
-    pass
+    with app.app_context():
+        return etl.tasks.populate_database()
+
     
 if __name__ == '__main__':
     app.run(debug=True)

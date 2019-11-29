@@ -16,4 +16,15 @@ class TestDb(TestCase):
             session = db.get_db()
             sessionmaker.assert_called_once_with(bind=app.app.config['DATABASE_ENGINE'])
             self.assertEqual(session, Session.return_value)
-    
+
+
+class TestGetDatawarehouseConnection(TestCase):
+
+    @patch('db.psycopg2')
+    def test(self, psycopg2):
+        with app.app.app_context():
+            connection = db.get_datawarehouse_connection()
+
+        self.assertEqual(connection, psycopg2.connect.return_value)
+        psycopg2.connect.assert_called_once_with(app.app.config['DATAWAREHOUSE_URI'])
+

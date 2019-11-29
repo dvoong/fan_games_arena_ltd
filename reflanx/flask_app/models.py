@@ -21,7 +21,7 @@ class DauDashboardData(Base):
 
 
 class EtlTask(Base):
-    __tablename__ = 'etl_tasks'
+    __tablename__ = 'etl_task'
     name = Column(String, primary_key=True)
     status = Column(String)
     timestamp = Column(DateTime)

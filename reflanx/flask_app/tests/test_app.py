@@ -1,6 +1,9 @@
 import datetime
-import sql
+import bcrypt
 import app
+import db
+import models
+import sql
 from unittest.mock import patch
 from models import Base, EtlTask
 from db import get_db
@@ -125,3 +128,74 @@ class TestPopulateDatabase(TestCase):
             response.json,
             {'status': 200, 'message': 'started populate_database task'}
         )
+
+
+class TestPopulateDatabaseTask(TestCase):
+
+    # calls the etl.tasks.populate_database task
+
+    @patch('app.etl.tasks.populate_database')
+    def test_calls_etl_tasks_populate_database_in_an_app_context(self, populate_database):
+        app.populate_database_task()
+        populate_database.assert_called_once()
+
+
+class TestLoginUser(TestCase):
+
+    def test_valid_login(self):
+        with app.app.app_context():
+            session = db.get_db()
+            password = b'test_password'
+            username = 'test_user'
+            hashed_password = bcrypt.hashpw(password, bcrypt.gensalt())
+            hashed_password = hashed_password.decode('utf-8')
+            user = models.User(username=username, password=hashed_password)
+            session.add(user)
+            session.commit()
+
+        response = self.client.post(
+            '/login-user',
+            json={'username': 'test_user', 'password': 'test_password'}
+        )
+
+        self.assertEqual(response.json, {'status': 200})
+
+    def test_wrong_password(self):
+        with app.app.app_context():
+            session = db.get_db()
+            password = b'test_password'
+            username = 'test_user'
+            hashed_password = bcrypt.hashpw(password, bcrypt.gensalt())
+            hashed_password = hashed_password.decode('utf-8')
+            user = models.User(username=username, password=hashed_password)
+            session.add(user)
+            session.commit()
+
+        response = self.client.post(
+            '/login-user',
+            json={'username': 'test_user', 'password': 'test_wrong_password'}
+        )
+
+        self.assertEqual(
+            response.json,
+            {
+                'status': 401,
+                'errors': ["Invalid username and password"]
+            }
+        )
+
+    def test_user_does_not_exist(self):
+        response = self.client.post(
+            '/login-user',
+            json={'username': 'test_user', 'password': 'test_password'}
+        )
+
+        self.assertEqual(
+            response.json,
+            {
+                'status': 401,
+                'errors': ["Invalid username and password"]
+            }
+        )
+
+    
