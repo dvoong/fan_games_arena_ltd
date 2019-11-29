@@ -13,7 +13,7 @@ from tests import TestCase
 class TestPopulateDatabase(TestCase):
 
     @patch('app.datetime')
-    @patch('app.get_task_status')
+    @patch('app.etl.tasks.get_task_status')
     @patch('app.populate_database_task')
     def test_if_task_has_not_run_before_run_task(self, populate_database_task, get_task_status, mock_datetime):
         get_task_status.return_value = None
@@ -29,7 +29,7 @@ class TestPopulateDatabase(TestCase):
         populate_database_task.delay.assert_called_once()
 
     @patch('app.datetime')
-    @patch('app.get_task_status')
+    @patch('app.etl.tasks.get_task_status')
     @patch('app.populate_database_task')
     def test_if_task_has_already_run_successfully_then_run_a_new_task(
             self,
@@ -61,7 +61,7 @@ class TestPopulateDatabase(TestCase):
 
 
     @patch('app.datetime')
-    @patch('app.get_task_status')
+    @patch('app.etl.tasks.get_task_status')
     @patch('app.populate_database_task')
     def test_if_task_is_already_running_then_wait(
             self,

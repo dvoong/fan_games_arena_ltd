@@ -17,6 +17,9 @@ def get_db():
     Session = sessionmaker(bind=current_app.config['DATABASE_ENGINE'])
     return Session()
 
+def get_pg_connection():
+    return psycopg2.connect(current_app.config['PG_DATABASE_URI'])
+
 def query_database(connection, sql, *args, **kwargs):
     with connection.cursor() as cursor:
         cursor.execute(sql, *args, **kwargs)

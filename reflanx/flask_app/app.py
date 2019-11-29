@@ -5,10 +5,13 @@ from celery import Celery
 from flask import Flask, request
 from flask_login import current_user, login_required, LoginManager
 from flask_wtf.csrf import CSRFProtect, generate_csrf
+from sqlalchemy.sql.expression import func as alchemy_func
+
 
 import db
 import etl, models
 import etl.tasks
+import utils
 from db import get_db
 from models import DauDashboardData, EtlTask, User
 
@@ -20,6 +23,12 @@ app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get(
     'postgresql+psycopg2://fga_dashboards@localhost/fga_dashboards' \
     if app.config['ENV'] != 'test' \
     else 'postgresql+psycopg2://test_fga_dashboards@localhost/test_fga_dashboards'
+)
+app.config["PG_DATABASE_URI"] = os.environ.get(
+    'PG_DATABASE_URI',
+    'postgresql://fga_dashboards@localhost/fga_dashboards' \
+    if app.config['ENV'] != 'test' \
+    else 'postgresql://test_fga_dashboards@localhost/test_fga_dashboards'
 )
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['GAME_DATABASE_HOST'] = os.environ['DATABASE_HOST']
@@ -137,14 +146,29 @@ def extract_game_data():
 @app.route('/get-dau-data', methods=['GET'])
 @login_required
 def get_dau_data():
-    session = db.get_db()
-    query = session.query(models.EtlTask)
-    values = [v for v in query.values()]
-    columns = DauDashboardData.__table__.columns.keys()
-    return {
-        'headers': columns,
-        'values': values,
-    }
+    sql = '''
+    with latest_analysis_time as (
+        select 
+            max(analysis_time) as analysis_time
+
+        from dau_dashboard_data
+
+    )
+    
+    select 
+        * 
+
+    from dau_dashboard_data 
+        join latest_analysis_time using (analysis_time)
+
+    order by date, client, tenure
+
+    '''
+    with db.get_pg_connection() as connection:
+        df = db.query_database(connection, sql)
+    
+    response = utils.to_web_dict(df)
+    return response
 
 @app.route('/login-user', methods=['POST'])
 def login_user():
