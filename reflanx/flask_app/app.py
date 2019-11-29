@@ -148,7 +148,6 @@ def get_dau_data():
         'values': values,
     }
 
-
 @app.route('/login-user', methods=['POST'])
 def login_user():
     username = request.json.get('username')
