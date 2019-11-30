@@ -54,7 +54,11 @@ app.config['CELERY_BACKEND'] = os.environ.get('CELERY_BACKEND', 'redis://localho
 app.config['CELERY_BROKER'] = os.environ.get('CELERY_BROKER', 'redis://localhost')
 
 # celery app
-celery = Celery('app', backend=app.config['CELERY_BACKEND'], broker=app.config['CELERY_BROKER'])
+# celery = Celery('app', backend=app.config['CELERY_BACKEND'], broker=app.config['CELERY_BROKER'])
+# celery = Celery('app', backend='redis://', broker=app.config['CELERY_BROKER'])
+celery = Celery('app', broker=app.config['CELERY_BROKER'])
+celery.conf.result_backend = 'redis://localhost:6379/0'
+app.celery = celery
 
 login_manager = LoginManager()
 login_manager.init_app(app)
@@ -196,26 +200,35 @@ def logout_user():
 @app.route('/populate-database', methods=['GET', 'POST'])
 def populate_database():
     force_update = 'force-update' in request.args
-    task_status = etl.tasks.get_task_status('populate_database')
-    if task_status == 'SUCCESS' or force_update is True:
-        session = get_db()
-        existing_task = session.query(EtlTask).get('populate_database')
-        session.delete(existing_task)
-        task = EtlTask(name='populate_database', status='RUNNING', timestamp=datetime.datetime.now())
+    session = db.get_db()
+    task = session.query(models.EtlTask).get('populate_database')
+    if task == None:
+        async_result = populate_database_task.delay()
+        task = EtlTask(
+            id=async_result.id,
+            name='populate_database',
+            created_at=datetime.datetime.now(),
+        )
         session.add(task)
-        task_status = populate_database_task.delay()
         session.commit()
-    elif task_status == None:
-        session = get_db()
-        task = EtlTask(name='populate_database', status='RUNNING', timestamp=datetime.datetime.now())
-        session.add(task)
-        print('adding task to celery queue')
-        task_status = populate_database_task.delay()
-        print('task_status:', task_status)
-        session.commit()
-    elif task_status == 'RUNNING':
-        return {'status': 200, 'message': 'populate_database task currently running'}
-    return {'status': 200, 'message': 'started populate_database task'}
+    else:
+        if task.status == 'SUCCESS' or force_update is True:
+            session = get_db()
+            existing_task = session.query(EtlTask).get('populate_database')
+            session.delete(existing_task)
+            async_result = populate_database_task.delay()
+            task = EtlTask(
+                id=async_result.id,
+                name='populate_database',
+                created_at=datetime.datetime.now()
+            )
+            session.add(task)
+            session.commit()
+    return {
+        'status': task.status,
+        'taskId': task.id,
+        'createdAt': task.created_at.strftime('%Y-%M-%d %H:%m:%s')
+    }
 
 @celery.task
 def populate_database_task():
@@ -225,4 +238,4 @@ def populate_database_task():
 
     
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(debug=True, threaded=True)

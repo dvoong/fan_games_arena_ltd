@@ -128,6 +128,17 @@ class TestPopulateDatabase(TestCase):
         self.assertEqual(tasks[0].timestamp, datetime.datetime(2018, 1, 1, 1))
         populate_database_task.delay.not_called()
 
+    @patch('app.etl.tasks.get_task_status')
+    def test_if_task_failed(self, get_task_status):
+
+        get_task_status.return_value = 'FAILED'
+        with app.app.test_request_context():
+            response = self.client.get('/populate-database')
+        self.assertEqual(
+            response.json,
+            {'status': 200, 'message': 'populate_database task failed'}
+        )
+        
     def test_functional(self):
         client = app.app.test_client()
         response = client.get('/populate-database')

@@ -20,12 +20,12 @@ class TestExtractData(TestCase):
 
     @patch('etl.tasks.query_game_database')
     @patch('etl.tasks.map_destination_table_to_sql')
-    @patch('etl.tasks.map_destination_table_to_source_table')
+    # @patch('etl.tasks.map_destination_table_to_source_table')
     @patch('etl.tasks.map_destination_table_to_game_database')
     def test(
             self,
             map_destination_table_to_game_database,
-            map_destination_table_to_source_table,
+            # map_destination_table_to_source_table,
             map_destination_table_to_sql,
             query_game_database
     ):
@@ -43,7 +43,7 @@ class TestExtractData(TestCase):
         call = query_game_database[0]
         query_game_database.assert_called_once_with(game_database, sql)
         map_destination_table_to_game_database.assert_called_once_with('devices')
-        map_destination_table_to_source_table.assert_called_once_with('devices')
+        # map_destination_table_to_source_table.assert_called_once_with('devices')
         map_destination_table_to_sql.assert_called_once_with('devices')
         self.assertTrue(data.equals(input_data))
 

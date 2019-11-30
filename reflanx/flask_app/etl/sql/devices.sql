@@ -1,1 +1,1 @@
-select * from FGAUserDevices
+select  * from FGAUserDevices
