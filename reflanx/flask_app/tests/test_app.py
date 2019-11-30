@@ -12,14 +12,48 @@ from tests import TestCase
 
 class TestPopulateDatabase(TestCase):
 
+
+    @patch('app.populate_database_task')
+    @patch('app.datetime')
+    def test_force_update(self, mock_datetime, populate_database_task):
+
+        t1 = datetime.datetime(2019, 1, 1, 1)
+        t2 = datetime.datetime(2019, 1, 1, 2)
+        mock_datetime.datetime.now.return_value = t2
+        with app.app.app_context():
+            session = db.get_db()
+            task = models.EtlTask(name='populate_database', status='RUNNING', timestamp=t1)
+            session.add(task)
+            session.commit()
+            
+        with app.app.test_request_context() as request:
+            request.request.args = {'force-update': ''}
+            response = app.populate_database()
+
+        with app.app.app_context():            
+            session = db.get_db()
+            task = session.query(EtlTask).get('populate_database')
+        self.assertEqual(task.status, 'RUNNING')
+        self.assertEqual(task.timestamp, t2)
+        populate_database_task.delay.assert_called_once()
+
+    
     @patch('app.datetime')
     @patch('app.etl.tasks.get_task_status')
     @patch('app.populate_database_task')
-    def test_if_task_has_not_run_before_run_task(self, populate_database_task, get_task_status, mock_datetime):
+    def test_if_task_has_not_run_before_run_task(
+            self,
+            populate_database_task,
+            get_task_status,
+            mock_datetime
+    ):
         get_task_status.return_value = None
         mock_datetime.datetime.now.return_value = datetime.datetime(2019, 1, 1, 1)
-        with app.app.app_context():
+
+        with app.app.test_request_context():
             response = app.populate_database()
+        
+        with app.app.app_context():
             session = get_db()
             tasks = session.query(EtlTask).all()
 
@@ -48,9 +82,11 @@ class TestPopulateDatabase(TestCase):
             session.commit()
         get_task_status.return_value = 'SUCCESS'
         mock_datetime.datetime.now.return_value = datetime.datetime(2019, 1, 1, 1)
+
+        with app.app.test_request_context():
+            app.populate_database()
         
         with app.app.app_context():
-            app.populate_database()
             session = get_db()
             tasks = session.query(EtlTask).all()
 
@@ -79,9 +115,11 @@ class TestPopulateDatabase(TestCase):
             session.add(existing_task)
             session.commit()
         get_task_status.return_value = 'RUNNING'
+
+        with app.app.test_request_context():
+            response = app.populate_database()
         
         with app.app.app_context():
-            app.populate_database()
             session = get_db()
             tasks = session.query(EtlTask).all()
 
@@ -92,14 +130,14 @@ class TestPopulateDatabase(TestCase):
 
     def test_functional(self):
         client = app.app.test_client()
-        response = client.post('/api/populate-database')
+        response = client.get('/populate-database')
         self.assertEqual(
             response.json,
             {'status': 200, 'message': 'started populate_database task'}
         )
 
         # task still running
-        response = client.post('/api/populate-database')
+        response = client.post('/populate-database')
         self.assertEqual(
             response.json,
             {
@@ -123,7 +161,7 @@ class TestPopulateDatabase(TestCase):
 
         # rerun task
         client = app.app.test_client()
-        response = client.post('/api/populate-database')
+        response = client.post('/populate-database')
         self.assertEqual(
             response.json,
             {'status': 200, 'message': 'started populate_database task'}

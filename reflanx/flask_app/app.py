@@ -17,6 +17,7 @@ from models import DauDashboardData, EtlTask, User
 
 
 app = Flask(__name__)
+app.config['PROJECT_HOME'] = os.environ['FLASK_HOME']
 app.config['SECRET_KEY'] = '6d7566e2-cfed-4709-8d11-080dc1b4d044'
 app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get(
     'SQLALCHEMY_DATABASE_URI',
@@ -53,7 +54,7 @@ app.config['CELERY_BACKEND'] = os.environ.get('CELERY_BACKEND', 'redis://localho
 app.config['CELERY_BROKER'] = os.environ.get('CELERY_BROKER', 'redis://localhost')
 
 # celery app
-celery = Celery(backend=app.config['CELERY_BACKEND'], broker=app.config['CELERY_BROKER'])
+celery = Celery('app', backend=app.config['CELERY_BACKEND'], broker=app.config['CELERY_BROKER'])
 
 login_manager = LoginManager()
 login_manager.init_app(app)
@@ -194,8 +195,9 @@ def logout_user():
 
 @app.route('/populate-database', methods=['GET', 'POST'])
 def populate_database():
+    force_update = 'force-update' in request.args
     task_status = etl.tasks.get_task_status('populate_database')
-    if task_status == 'SUCCESS':
+    if task_status == 'SUCCESS' or force_update is True:
         session = get_db()
         existing_task = session.query(EtlTask).get('populate_database')
         session.delete(existing_task)
@@ -207,7 +209,9 @@ def populate_database():
         session = get_db()
         task = EtlTask(name='populate_database', status='RUNNING', timestamp=datetime.datetime.now())
         session.add(task)
+        print('adding task to celery queue')
         task_status = populate_database_task.delay()
+        print('task_status:', task_status)
         session.commit()
     elif task_status == 'RUNNING':
         return {'status': 200, 'message': 'populate_database task currently running'}
@@ -215,6 +219,7 @@ def populate_database():
 
 @celery.task
 def populate_database_task():
+    print('populate_database_task_id')
     with app.app_context():
         return etl.tasks.populate_database()
 

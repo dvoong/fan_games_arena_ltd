@@ -7,7 +7,7 @@ from db import query_game_database
 
 def extract_table(table):
     database = map_destination_table_to_game_database(table)
-    source_table = map_destination_table_to_source_table(table)
+    # source_table = map_destination_table_to_source_table(table)
     sql = map_destination_table_to_sql(table)
     data = query_game_database(database, sql)
     return data
@@ -22,14 +22,17 @@ def insert_table(data, table):
     return data.to_sql(table, engine, index=False)
 
 def map_destination_table_to_game_database(table):
+    print('map_destination_table_to_game_database')
     return {
-        'devices': current_app.config['GAME_USER_DATABASE'],
+        'devices': db.get_game_database_connection(
+            current_app.config['GAME_USER_DATABASE']
+        )
     }
 
-def map_destination_table_to_source_table(table):
-    return {
-        'devices': current_app.config['GAME_DEVICES_TABLE']
-    }
+# def map_destination_table_to_source_table(table):
+#     return {
+#         'devices': current_app.config['GAME_DEVICES_TABLE']
+#     }
 
 def map_destination_table_to_sql(table):
     project_home = current_app.config['PROJECT_HOME']
