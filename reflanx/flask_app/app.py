@@ -166,11 +166,18 @@ def get_dau_data():
     from dau_dashboard_data 
         join latest_analysis_time using (analysis_time)
 
-    order by date, client, tenure
+    order by date, client, tenure_type
 
     '''
     with db.get_pg_connection() as connection:
         df = db.query_database(connection, sql)
+
+    print('df:', df)
+
+    df['date'] = pd.to_datetime(df['date']).dt.strftime('%Y-%m-%d')
+    df['analysis_time'] = pd.to_datetime(
+        df['analysis_time']
+    ).dt.strftime('%Y-%m-%d %H:%M:%S')
     
     response = utils.to_web_dict(df)
     return response
@@ -229,6 +236,29 @@ def populate_database():
         'taskId': task.id,
         'createdAt': task.created_at.strftime('%Y-%M-%d %H:%m:%s')
     }
+
+@app.route('/populate-dau')
+def populate_dau():
+    with open('etl/sql/dau.sql') as f:
+        sql = str(f.read())
+
+    with db.get_datawarehouse_connection() as connection:
+        df = db.query_database(connection, sql)
+    df['analysis_time'] = datetime.datetime.now()
+
+    sql = '''insert into dau_dashboard_data ('''
+    sql += ','.join(df.columns)
+    sql += ') values ('
+    sql += ','.join(['%s' for i in range(len(df.columns))])
+    sql += ')'
+    values = df.values.tolist()
+    print('sql:', sql)
+
+    with db.get_pg_connection() as connection:
+        with connection.cursor() as cursor:
+            cursor.executemany(sql, values)
+
+    return {'status': 200, 'sql': sql}
 
 @celery.task
 def populate_database_task():

@@ -21,6 +21,57 @@
   color: #09d3ac;
 }
 
+.line {
+  fill: none;
+  stroke: steelblue;
+  stroke-width: 2px;
+}
+
+.line-0 {
+    stroke: indianred;
+}
+
+.line-1 {
+    stroke: aquamarine;
+}
+
+.line-2 {
+    stroke: coral;
+}
+
+.line-3 {
+    stroke: darkslateblue;
+}
+
+.line-4 {
+    stroke: #800000; /* webmaroon */
+}
+
+.bar {
+  fill: steelblue;
+  stroke: none;
+}
+
+.bar-0 {
+    fill: indianred;
+}
+
+.bar-1 {
+    fill: aquamarine;
+}
+
+.bar-2 {
+    fill: coral;
+}
+
+.bar-3 {
+    fill: darkslateblue;
+}
+
+.bar-4 {
+    fill: #800000; /* webmaroon */
+}
+
 .main-container {
     margin-top: 100px;
 }
