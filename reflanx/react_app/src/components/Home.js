@@ -15,10 +15,10 @@ class DauDashboard extends React.Component {
 	super(props)
 	this.dauDashboard = props.dauDashboard;
 	this.state = {
-	    groupBy: ['date', 'client'],
+	    groupby: ['client'],
             filter: [],
 	};
-        this.dauDashboard.groupBy = this.state.groupBy;
+        this.dauDashboard.groupby = this.state.groupby;
     }
 
     onClientChange() {
@@ -41,27 +41,46 @@ class DauDashboard extends React.Component {
 	    <div
               id={dauDashboard.containerId}
               className="container dashboard dashboard-container"
+              style={{paddingTop: "5em"}}
             >
-              <div id={dauChart.containerId} className="container chart-container">
-	        <svg id={dauChart.canvasId} className="canvas chart-canvas">
-                  <g id={dauChart.plotAreaId}>
-                  </g>
-	        </svg>
-	      </div>
+              <div className="row">
+                <div id={dauChart.containerId} className="container chart-container">
+                  <h2 className="chart-title title" style={{visibility: "hidden"}}></h2>
+	          <svg id={dauChart.canvasId} className="canvas chart-canvas">
+                    <g id={dauChart.plotAreaId}>
+                    </g>
+	          </svg>
+	        </div>
+              </div>
 
-	      <div id={dauDashboard.clientChart.containerId} className="container chart-container">
-		<svg id={dauDashboard.clientChart.canvasId} className="canvas chart-canvas">
-                  <g id={dauDashboard.clientChart.plotAreaId}>
-                  </g>
-		</svg>
-	      </div>
+              <div className="row">
+                <div className="col-md-6">
+	          <div
+                    id={dauDashboard.clientChart.containerId}
+                    className="container chart-container"
+                  >
+                    <h2 className="chart-title title" style={{visibility: "hidden"}}></h2>
+		    <svg id={dauDashboard.clientChart.canvasId} className="canvas chart-canvas">
+                      <g id={dauDashboard.clientChart.plotAreaId}>
+                      </g>
+		    </svg>
+	          </div>
+                </div>
 
-	      <div id={dauDashboard.tenureTypeChart.containerId} className="container chart-container">
-		<svg id={dauDashboard.tenureTypeChart.canvasId} className="canvas chart-canvas">
-                  <g id={dauDashboard.tenureTypeChart.plotAreaId}>
-                  </g>
-		</svg>
-	      </div>
+                <div className="col-md-6">
+	          <div
+                    id={dauDashboard.tenureTypeChart.containerId}
+                    className="container chart-container"
+                  >
+                    <h2 className="chart-title title" style={{visibility: "hidden"}}></h2>
+		    <svg id={dauDashboard.tenureTypeChart.canvasId} className="canvas chart-canvas">
+                      <g id={dauDashboard.tenureTypeChart.plotAreaId}>
+                      </g>
+		    </svg>
+	          </div>
+                </div>
+              </div>
+              
             </div>
         );
     }

@@ -1,5 +1,25 @@
 import * as d3 from "d3";
 
+// function filterData(data, filters) {
+//     // data = {"headers": [], "values": []}
+//     // filters = [{name: "name", values: []}, ...]
+//     let filteredData = {...data};
+//     if(filters.length === 0){
+// 	return filteredData;
+//     }
+//     filteredData.values = data.values.filter(
+// 	d => {
+// 	    let conditionTests = filters.map(
+// 		f=> {
+// 		    let index = data.heahers.indexOf(f.name);
+// 		    return f.values.length === 0 || f.values.includes(d[index])
+// 		}
+// 	    )
+// 	    return !conditionTests.include(false)
+// 	}
+//     )
+// }
+
 class DauDashboard {
 
     constructor(containerId) {
@@ -23,13 +43,26 @@ class DauDashboard {
 	    "tenureType-chart-plot-area"
 	);
         this.initialiseComponents = this.initialiseComponents.bind(this);
-	this.groupBy = null;
-	// this.filter = [{name: 'client', values: []}, {name: 'tenureType', values: []}];
-	// this.filter = [{name: 'client', values: ['Android']}];
-	// this.filter = [{name: 'client', values: []}];
+	this._groupby = null;
 	this.filter = []
     }
 
+    hideTooltip() {
+	this.tooltip
+	    .transition()
+	    .style("opacity", 0);
+    }
+
+    set groupby(groupby){
+	if(this._groupby === null){
+	    this._groupby = groupby;
+	} else {
+	    this._groupby = groupby;
+	    this.data = this.data;
+	    this.draw()
+	}
+    }
+    
     set data(data) {
         this._data = data;
 	
@@ -39,15 +72,19 @@ class DauDashboard {
 		let conditionTests = this.filter.map(
 		    f=>{
 			let valueIndex = this.data.headers.indexOf(f.name)
-			return f.values.includes(row[valueIndex]) || f.values.length === 0;
+			return f.values.includes(
+			    row[valueIndex]
+			) || f.values.length === 0;
 		    }
 		);
-		return !conditionTests.includes(false) || conditionTests.length == 0;
+		return !conditionTests.includes(false) || conditionTests.length === 0;
 	    },
 	);
 
 	// set groupedData
-	let groupIndices = this.groupBy.map(
+
+	let groupby = ["date", ...this.groupby]
+	let groupIndices = groupby.map(
 	    g => this.data.headers.indexOf(g)
 	);
 
@@ -77,7 +114,7 @@ class DauDashboard {
 	this.groupedData = groupedData;
 
 	// set clientData
-	let groupby = "client";
+	groupby = "client";
 	let clientIndex = this.data.headers.indexOf(groupby);
 	let clientData = this.data.values.reduce(
 	    (accumulator, row) => {
@@ -126,6 +163,10 @@ class DauDashboard {
         return this._data;
     }
 
+    get groupby() {
+        return this._groupby;
+    }
+
     draw() {
         this.dauChart.draw(this.groupedData);
 	this.clientChart.draw(this.clientData);
@@ -145,6 +186,21 @@ class DauDashboard {
         return true;
     }
 
+    showTooltip(data) {
+	if(this.tooltip === undefined){
+	    this.tooltip = this.container.append("div")
+		.attr("class", "tooltip")
+		.style("opacity", 0)
+	}
+	this.tooltip
+	    .html(data)
+            .style("left", (d3.event.pageX) + "px")		
+            .style("top", (d3.event.pageY - 28) + "px")
+	    .transition()
+	    .style("opacity", 0.9);
+	
+    }
+    
 }
 
 class Chart {
@@ -160,6 +216,7 @@ class Chart {
     initialiseComponents(dashboardContainer) {
         this.container = dashboardContainer.select(`#${this.containerId}`);
         this.canvas = this.container.select(`#${this.canvasId}`);
+	this.title = this.container.select(".title")
         this.canvasWidth = parseInt(this.container.style('width'), 10);
         this.canvasHeight = 300;
         this.canvas.attr("width", this.canvasWidth)
@@ -200,6 +257,7 @@ class ClientChart extends Chart {
 	super(...args);
 	this.xScale = d3.scaleLinear();
 	this.yScale = d3.scaleBand();
+	this.showTooltip = this.showTooltip.bind(this);
     }
 
     draw(data) {
@@ -210,15 +268,34 @@ class ClientChart extends Chart {
             return;
         }
 
+	let title = "Total DAU by client"
+	this.title
+	    .html(title)
+	    .style("visibility", "visible")
+	    .on("click", e=>this.dauDashboard.groupby = ['client']);
+	
 	let xMin = 0
 	let xMax = d3.max(data, d=>d.totalDau)
 	this.xScale.domain([xMin, xMax]);
 	this.yScale.domain(data.map(d=>d.client));
 	let selection = this.plotArea.selectAll(".bar")
-	    .data(data);
-	selection.exit().remove();
-	selection.enter().append("rect")
-	    .attr("class", d=>`bar bar-${this.dauDashboard.clients.indexOf(d.client)}`)
+	    .data(data)
+	    .join("rect")
+	    .attr(
+		"class",
+		d=> {
+		    let filter = that.dauDashboard.filter;
+		    let clientFilterIndex = filter.findIndex(d=>d.name == "client");
+		    let barClass = `bar-${this.dauDashboard.clients.indexOf(d.client)}`
+		    
+		    if(clientFilterIndex != -1 &&
+		       filter[clientFilterIndex].values.length > 0 &&
+		       filter[clientFilterIndex].values.indexOf(d.client) == -1) {
+			barClass = 'bar-filtered-out'
+		    }
+		    return `bar ${barClass}`
+		}
+	    )
 	    .attr("x", 0)
 	    .attr("y", d=>this.yScale(d.client))
 	    .attr("width", d=>this.xScale(d.totalDau))
@@ -226,15 +303,24 @@ class ClientChart extends Chart {
 	    .on(
 		"click",
 		d=>{
-		    let filterIndex = that.dauDashboard.filter.findIndex(d=>d.name == 'client');
+		    let filterIndex = that
+			.dauDashboard
+			.filter
+			.findIndex(d=>d.name == 'client');
 		    if(filterIndex != -1) {
-			let filterValueIndex = that.dauDashboard.filter[filterIndex].values.indexOf(d.client);
+			let filterValueIndex = that.dauDashboard.filter[
+			    filterIndex
+			].values.indexOf(d.client);
 			if(filterValueIndex != -1){
-			    that.dauDashboard.filter[filterIndex].values = that.dauDashboard.filter[
+			    that.dauDashboard.filter[
+				filterIndex
+			    ].values = that.dauDashboard.filter[
 				filterIndex
 			    ].values.filter(x=>x != d.client)
 			} else {
-			    that.dauDashboard.filter[filterIndex].values.push(d.client);
+			    that.dauDashboard.filter[
+				filterIndex
+			    ].values.push(d.client);
 			}
 		    } else {
 			that.dauDashboard.filter.push(
@@ -245,10 +331,25 @@ class ClientChart extends Chart {
 		    that.dauDashboard.draw();
 		}
 	    )
+	    .on("mouseover", d=>this.showTooltip(d))
+	    .on("mousemove", d=>this.showTooltip(d))
+	    .on("mouseout", d=>this.hideTooltip())
 	
-
-	this.xAxis.call(d3.axisBottom(this.xScale));
+	this.xAxis.call(
+	    d3.axisBottom(this.xScale)
+		.ticks(5)
+	);
 	this.yAxis.call(d3.axisLeft(this.yScale));
+	
+    }
+
+    hideTooltip(){
+	return this.dauDashboard.hideTooltip();
+    }
+
+    showTooltip(d) {
+	let value = d.totalDau.toLocaleString();
+	return this.dauDashboard.showTooltip(value);
     }
 }
 
@@ -266,6 +367,14 @@ class DauChart extends Chart {
             console.log("DauChart.error, no canvas or container");
             return;
         }
+
+	let groupbyTitle  = this.dauDashboard.groupby == "tenureType"
+	    ? "tenure type" : this.dauDashboard.groupby
+	let title = this.dauDashboard.groupby ? `DAU by ${groupbyTitle}` : "DAU";
+	this.title
+	    .html(title)
+	    .style("visibility", "visible")
+	
 	const dateIndex = 0
 	const dauIndex = 1
 
@@ -285,45 +394,95 @@ class DauChart extends Chart {
 	    .transition()
 	    .call(d3.axisLeft(this.yScale));
 
-        // this.valueline = d3.line()
-        //     .x(d => this.xScale(d[0]))
-        //     .y(d => this.yScale(d[1]))
-        //     .curve(d3.curveMonotoneX);
-
-	// let selection = this.plotArea.selectAll("path.line")
-	//     .data(groupedData.map(d=>d.values))
-	// selection.exit().remove();
-	// selection.enter()
-	//     .append("path")
-	//     .attr("class", (d, i) => `line line-${i}`)
-	//     .data(groupedData.map(d=>d.values))
-	//     .attr("d", this.valueline);
-	// selection
-	//     .data(groupedData.map(d=>d.values))
-	//     .transition()
-	//     .attr("d", this.valueline);
-
         this.valueline = d3.line()
             .x(d => this.xScale(d[0]))
             .y(d => this.yScale(d[1]))
             .curve(d3.curveMonotoneX);
 
-	console.log("groupedData");
-	console.log(groupedData);
-	
-	let selection = this.plotArea.selectAll("path.line")
-	    .data(groupedData.map(d=>d.values))
-	selection.exit().remove();
-	selection.enter()
-	    .append("path")
-	    .attr("class", (d, i) => `line line-${i}`)
-	    .data(groupedData.map(d=>d.values))
-	    .attr("d", this.valueline);
-	selection
-	    .data(groupedData.map(d=>d.values))
+	let selection = this.plotArea.selectAll('.line-group')
+	    .data(groupedData, d=>d.key);
+
+	let lineGroups = selection.enter()
+	    .append('g')
+	    .attr('class', 'line-group')
+
+	lineGroups
+	    .append('path')
+	    .attr('class', (d, i)=>`line line-${i}`)
 	    .transition()
-	    .attr("d", this.valueline);
+	    .attr('d', d => this.valueline(d.values))
+
+	this.plotArea
+	    .selectAll('.circle')
+	    .remove();
 	
+	groupedData.map(
+	    (d, i)=>{
+
+
+		let index = i;
+		let groupby = this.dauDashboard.groupby;
+		if(groupby.length === 1 && groupby[0] === "client"){
+		    index = this.dauDashboard.clients.indexOf(d.key[0])
+		} else if (groupby.length ===1 && groupby[0] === "tenureType"){
+		    index = this.dauDashboard.tenureTypes.indexOf(d.key[0]);
+		} 
+		
+		let circles = this.plotArea
+		    .selectAll(`.circle--${d.key.join("-")}`)
+		    .data(
+			d.values,
+			x=>{
+			    let y=[x[0], ...d.key].join(',');
+			    return y
+			}
+		    );
+
+		circles
+		    .enter()
+		    .append("circle")
+		    .attr("class", `circle circle--${d.key.join("-")} bar-${index}`)
+		    .attr("cx", x=>this.xScale(x[0]))
+		    .attr("cy", x=>this.yScale(x[1]))
+		    .attr("r", 5)
+		    .attr("opacity", 1)
+		    .on("mouseover", (x, i, circles)=>this.showTooltip(x, i, circles))
+		    .on("mouseout", (x, i, circles)=>this.hideTooltip(x, i, circles))
+
+		circles.exit().remove()
+
+		circles
+		    .attr("cx", d=>this.xScale(d[0]))
+		    .attr("cy", d=>this.yScale(d[1]))
+		    .attr("r", 5)
+		    .attr("opacity", 1)
+		    .on("mouseover", (d, i, circles)=>this.showTooltip(d, i, circles))
+		    .on("mouseout", (d, i, circles)=>this.hideTooltip(d, i, circles))
+	    }
+	)
+	
+	selection.exit().remove()
+	
+	selection
+	    .selectAll('path')
+	    .data(groupedData, d=>d.key)
+	    .transition()
+	    .attr('d', d=>this.valueline(d.values))
+	
+    }
+
+    hideTooltip(d, i, circles) {
+	let circle = d3.select(circles[i]);
+	circle.attr("opacity", 1);
+	return this.dauDashboard.hideTooltip();
+    }
+    
+    showTooltip(d, i, circles) {
+	let date = d[0].toDateString();
+	let dau = d[1].toLocaleString();
+	let circle = d3.select(circles[i]);
+	circle.attr('opacity', 1)
+	this.dauDashboard.showTooltip(`${date}: ${dau}`);
     }
 }
 
@@ -343,15 +502,34 @@ class TenureTypeChart extends Chart {
             return;
         }
 
+	let title = "Total DAU by tenure type"
+	this.title
+	    .html(title)
+	    .style("visibility", "visible")
+	    .on("click", e=>this.dauDashboard.groupby = ['tenureType']);
+
 	let xMin = 0
 	let xMax = d3.max(data, d=>d.totalDau)
 	this.xScale.domain([xMin, xMax]);
 	this.yScale.domain(data.map(d=>d.tenureType));
 	let selection = this.plotArea.selectAll(".bar")
-	    .data(data);
-	selection.exit().remove();
-	selection.enter().append("rect")
-	    .attr("class", d=>`bar bar-${this.dauDashboard.tenureTypes.indexOf(d.tenureType)}`)
+	    .data(data)
+	    .join("rect")
+	    .attr(
+		"class",
+		d=> {
+		    let filter = that.dauDashboard.filter;
+		    let tenureTypeFilterIndex = filter.findIndex(d=>d.name == "tenureType");
+		    let barClass = `bar-${this.dauDashboard.tenureTypes.indexOf(d.tenureType)}`
+		    
+		    if(tenureTypeFilterIndex != -1 &&
+		       filter[tenureTypeFilterIndex].values.length > 0 &&
+		       filter[tenureTypeFilterIndex].values.indexOf(d.tenureType) == -1) {
+			barClass = 'bar-filtered-out'
+		    }
+		    return `bar ${barClass}`
+		}
+	    )
 	    .attr("x", 0)
 	    .attr("y", d=>this.yScale(d.tenureType))
 	    .attr("width", d=>this.xScale(d.totalDau))
@@ -359,15 +537,26 @@ class TenureTypeChart extends Chart {
 	    .on(
 		"click",
 		d=>{
-		    let filterIndex = that.dauDashboard.filter.findIndex(d=>d.name == 'tenureType');
+		    let filterIndex = that
+			.dauDashboard
+			.filter
+			.findIndex(d=>d.name == 'tenureType');
 		    if(filterIndex != -1) {
-			let filterValueIndex = that.dauDashboard.filter[filterIndex].values.indexOf(d.tenureType);
+			let filterValueIndex = that.dauDashboard.filter[
+			    filterIndex
+			].values.indexOf(d.tenureType);
 			if(filterValueIndex != -1){
-			    that.dauDashboard.filter[filterIndex].values = that.dauDashboard.filter[
+			    that.dauDashboard.filter[
+				filterIndex
+			    ].values = that.dauDashboard.filter[
 				filterIndex
 			    ].values.filter(x=>x != d.tenureType)
 			} else {
-			    that.dauDashboard.filter[filterIndex].values.push(d.tenureType);
+			    that
+				.dauDashboard
+				.filter[filterIndex]
+				.values
+				.push(d.tenureType);
 			}
 		    } else {
 			that.dauDashboard.filter.push(
@@ -378,9 +567,25 @@ class TenureTypeChart extends Chart {
 		    that.dauDashboard.draw();
 		}
 	    )
+	    .on("mouseover", d=>this.showTooltip(d))
+	    .on("mousemove", d=>this.showTooltip(d))
+	    .on("mouseout", d=>this.hideTooltip())
 
-	this.xAxis.call(d3.axisBottom(this.xScale));
+	this.xAxis.call(
+	    d3.axisBottom(this.xScale)
+		.ticks(5)
+	);
 	this.yAxis.call(d3.axisLeft(this.yScale));
+	
+    }
+
+    hideTooltip(){
+	return this.dauDashboard.hideTooltip();
+    }
+
+    showTooltip(d) {
+	let value = d.totalDau.toLocaleString();
+	return this.dauDashboard.showTooltip(value);
     }
 }
 

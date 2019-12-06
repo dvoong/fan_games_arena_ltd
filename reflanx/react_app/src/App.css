@@ -21,6 +21,11 @@
   color: #09d3ac;
 }
 
+.chart-title {
+    padding-bottom: 1em;
+    font-size: 1em;
+}
+
 .line {
   fill: none;
   stroke: steelblue;
@@ -70,6 +75,10 @@
 
 .bar-4 {
     fill: #800000; /* webmaroon */
+}
+
+.bar-filtered-out {
+    fill: lightgrey;
 }
 
 .main-container {
