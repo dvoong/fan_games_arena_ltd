@@ -143,10 +143,10 @@ class DauChart extends React.Component {
             .selectAll("circle")
             .data((d, i)=>d.values.map(v=>({...v, groupKey: d.groupKey, index: i})))
             .join("circle")
+            .attr("class", d=>`bar-${d.index}`)
             .transition()
             .attr("cx", d=>this.xAxis.scale(d.date))
             .attr("cy", d=>this.yAxis.scale(d.dau))
-            .attr("class", d=>`bar-${d.index}`)
             .attr("r", 5);
 
         plotGroups.selectAll(".plot-line")
@@ -170,7 +170,7 @@ class DauChart extends React.Component {
 	    .attr("y", (d, i)=>(i-1)*15)
 	    .attr("height", 15)
 	    .attr("width", 15)
-            .attr("class", (d, i)=>`legend-item bar-${i}`);
+            .attr("class", (d, i)=>`bar-${i}`);
 
         legendItems.selectAll("text")
             .data(data)
@@ -178,8 +178,7 @@ class DauChart extends React.Component {
             .html(d=>d.groupKey)
 	    .attr("y", (d, i)=>i*15)
 	    .attr("dx", "-0.5em")
-	    .attr("text-anchor", "end")
-            .attr("class", "legend-item");
+	    .attr("text-anchor", "end");
 
     }
         
