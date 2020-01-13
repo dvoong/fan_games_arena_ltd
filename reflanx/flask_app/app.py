@@ -7,69 +7,55 @@ from flask_login import current_user, login_required, LoginManager
 from flask_wtf.csrf import CSRFProtect, generate_csrf
 from sqlalchemy.sql.expression import func as alchemy_func
 
-
-import db
+import db.alchemy
+import db.app
+import db.data_warehouse
 import etl, models
 import etl.tasks
 import utils
-from db import get_db
+import db.alchemy
 from models import DauDashboardData, EtlTask, User
 
 
 app = Flask(__name__)
 app.config['PROJECT_HOME'] = os.environ.get('FLASK_HOME', os.getcwd())
-print(app.config['PROJECT_HOME'])
 app.config['SECRET_KEY'] = '6d7566e2-cfed-4709-8d11-080dc1b4d044'
-app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get(
-    'SQLALCHEMY_DATABASE_URI',
-    'postgresql+psycopg2://fga_dashboards@localhost/fga_dashboards' \
-    if app.config['ENV'] != 'test' \
-    else 'postgresql+psycopg2://test_fga_dashboards@localhost/test_fga_dashboards'
-)
-app.config["PG_DATABASE_URI"] = os.environ.get(
-    'PG_DATABASE_URI',
-    'postgresql://fga_dashboards@localhost/fga_dashboards' \
-    if app.config['ENV'] != 'test' \
-    else 'postgresql://test_fga_dashboards@localhost/test_fga_dashboards'
-)
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.config['GAME_DATABASE_HOST'] = os.environ['DATABASE_HOST']
-app.config['GAME_DATABASE_PASSWORD'] = os.environ['DATABASE_PASSWORD']
-app.config['GAME_DATABASE_USER'] = os.environ['DATABASE_USER']
-app.config['GAME_LOGS_DATABASE'] = os.environ['LOGS_DATABASE']
-app.config['GAME_USER_DATABASE'] = os.environ['USERS_DATABASE']
-app.config['GAME_QUIZGAMES_DATABASE'] = os.environ['QUIZGAMES_DATABASE']
-app.config['DATAWAREHOUSE_URI'] = os.environ.get(
-    'DATAWAREHOUSE_URI',
-    'postgresql://fga_datawarehouse@localhost/fga_datawarehouse' if app.config['ENV'] != 'test' \
-    else 'postgresql://test_fga_datawarehouse@localhost/test_fga_datawarehouse'
-)
-app.config['DATABASE'] = os.environ.get(
-    'DATABASE',
-    'postgresql://fga_dashboards@localhost/fga_dashboards' if app.config['ENV'] != 'test' else \
-    'postgresql://test_fga_dashboards@localhost/test_fga_dashboards',
-)
-app.config['DATABASE_ENGINE'] = sqlalchemy.create_engine(app.config['DATABASE'])
 app.config['WTF_CSRF_ENABLED'] = False if app.config['ENV'] == 'test' else True
+
+# database config
+app.config['GAME_DATABASE_HOST'] = os.environ['GAME_DATABASE_HOST']
+app.config['GAME_DATABASE_USER'] = os.environ['GAME_DATABASE_USER']
+app.config['GAME_DATABASE_PASSWORD'] = os.environ['GAME_DATABASE_PASSWORD']
+app.config['GAME_LOGS_DATABASE_NAME'] = os.environ['GAME_LOGS_DATABASE_NAME']
+app.config['GAME_USER_DATABASE_NAME'] = os.environ['GAME_USER_DATABASE_NAME']
+app.config['GAME_QUIZGAMES_DATABASE_NAME'] = os.environ['GAME_QUIZGAMES_DATABASE_NAME']
+
+app.config['APP_DATABASE'] = os.environ['APP_DATABASE']
+app.config['APP_DATABASE_WAREHOUSE_SCHEMA'] = os.environ['APP_DATABASE_WAREHOUSE_SCHEMA']
+app.config['APP_DATABASE_DASHBOARDS_SCHEMA'] = os.environ['APP_DATABASE_DASHBOARDS_SCHEMA']
+
+app.config['DATA_WAREHOUSE_DATABASE'] = os.environ['DATA_WAREHOUSE_DATABASE']
+
+app.config['SQLALCHEMY_DATABASE_URI'] = os.environ['SQLALCHEMY_DATABASE_URI']
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config['DATABASE_ENGINE'] = sqlalchemy.create_engine(app.config['APP_DATABASE'])
+
 app.config['CELERY_BACKEND'] = os.environ.get('CELERY_BACKEND', 'redis://localhost')
 app.config['CELERY_BROKER'] = os.environ.get('CELERY_BROKER', 'redis://localhost')
-app.config['SQL_DIRECTORY'] = os.environ.get(
-    'SQL_DIRECTORY',
-    '{}/sql'.format(app.config['PROJECT_HOME'])
-)
+app.config['SQL_DIRECTORY'] = '{}/sql'.format(app.config['PROJECT_HOME'])
 
-# celery app
-# celery = Celery('app', backend=app.config['CELERY_BACKEND'], broker=app.config['CELERY_BROKER'])
-# celery = Celery('app', backend='redis://', broker=app.config['CELERY_BROKER'])
-celery = Celery('app', broker=app.config['CELERY_BROKER'])
-celery.conf.result_backend = 'redis://localhost:6379/0'
-app.celery = celery
+main_module = 'app'
+celery = Celery(
+    main_module,
+    backend=app.config['CELERY_BACKEND'],
+    broker=app.config['CELERY_BROKER']
+)
 
 login_manager = LoginManager()
 login_manager.init_app(app)
 @login_manager.user_loader
 def load_user(user_id):
-    session = db.get_db()
+    session = db.alchemy.get_session()
     return session.query(User).get(user_id)
 
 CSRFProtect(app)
@@ -174,8 +160,8 @@ def get_dau_data():
     order by date, client, tenure_type
 
     '''
-    with db.get_pg_connection() as connection:
-        df = db.query_database(connection, sql)
+    with db.app.get_connection() as connection:
+        df = db.app.query_database(connection, sql)
 
     print('df:', df)
 
@@ -202,9 +188,9 @@ def populate_retention_data():
     filepath = "{}/populate_retention_dashboard_data.sql".format(app.config['SQL_DIRECTORY'])
     with open(filepath, 'r') as f:
         sql = str(f.read())
-    with db.get_datawarehouse_connection() as connection:
-        df = db.query_database(connection, sql)
-    with db.get_pg_connection() as connection:
+    with db.data_warehouse.get_connection() as connection:
+        df = db.data_warehouse.query_database(connection, sql)
+    with db.app.get_connection() as connection:
         sql = '''create table if not exists retention_dashboard_data (
             date timestamp, 
             client varchar(100),
@@ -309,8 +295,9 @@ def populate_activation_funnel_dashboard_data():
 def login_user():
     username = request.json.get('username')
     password = request.json.get('password')
-    session = db.get_db()
+    session = db.alchemy.get_session()
     user = session.query(User).filter(User.username==username).first()
+    response =  {'status': 401, 'errors': ["Invalid username and password"]}
     if user:
         hashed_password = user.password
         is_authenticated = bcrypt.checkpw(
@@ -319,8 +306,9 @@ def login_user():
         )
         if is_authenticated:
             flask_login.login_user(user)
-            return {'status': 200}
-    return {'status': 401, 'errors': ["Invalid username and password"]}
+            response = {'status': 200}
+    print('response:', response)
+    return(response)
 
 @app.route('/logout-user', methods=['POST'])
 def logout_user():
@@ -330,7 +318,7 @@ def logout_user():
 @app.route('/populate-database', methods=['GET', 'POST'])
 def populate_database():
     force_update = 'force-update' in request.args
-    session = db.get_db()
+    session = db.alchemy.get_session()
     task = session.query(models.EtlTask).get('populate_database')
     if task == None:
         async_result = populate_database_task.delay()
@@ -343,7 +331,7 @@ def populate_database():
         session.commit()
     else:
         if task.status == 'SUCCESS' or force_update is True:
-            session = get_db()
+            session = db.alchemy.get_session()
             existing_task = session.query(EtlTask).get('populate_database')
             session.delete(existing_task)
             async_result = populate_database_task.delay()
@@ -365,8 +353,8 @@ def populate_dau():
     with open('etl/sql/dau.sql') as f:
         sql = str(f.read())
 
-    with db.get_datawarehouse_connection() as connection:
-        df = db.query_database(connection, sql)
+    with db.data_warehouse.get_connection() as connection:
+        df = db.data_warehouse.query_database(connection, sql)
     df['analysis_time'] = datetime.datetime.now()
 
     sql = '''insert into dau_dashboard_data ('''
@@ -377,7 +365,7 @@ def populate_dau():
     values = df.values.tolist()
     print('sql:', sql)
 
-    with db.get_pg_connection() as connection:
+    with db.app.get_connection() as connection:
         with connection.cursor() as cursor:
             cursor.executemany(sql, values)
 

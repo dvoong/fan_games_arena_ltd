@@ -1,0 +1,18 @@
+version: '3'
+services:
+  web:
+    build: ./reflanx/react_app
+    ports:
+      - 8001:80
+  api:
+    build: ./reflanx/flask_app
+    env_file: ./reflanx/flask_app/.env
+    environment:
+      - APP_DATABASE=postgresql://postgres@db/postgres
+      - DATA_WAREHOUSE_DATABASE=postgresql://postgres@data_warehouse/postgres
+  db:
+    image: postgres
+  data_warehouse:
+    image: postgres
+
+    

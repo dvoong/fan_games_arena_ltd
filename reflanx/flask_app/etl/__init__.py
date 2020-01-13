@@ -1,8 +1,8 @@
-from db import get_db
+import db.alchemy
 from models import EtlTask
 
 def get_task_status(name):
-    session = get_db()
+    session = db.alchemy.get_session()
     task = session.query(EtlTask).get(name)
     return None if task is None else task.status
 

@@ -13,6 +13,7 @@ const ErrorComponent = ({error, i}) => {
 class LoginForm extends React.Component {
 
     constructor(props) {
+        console.log("LoginForm.constructor");
 	super(props);
         this.state = {
             errors: [],
@@ -26,8 +27,6 @@ class LoginForm extends React.Component {
     onSubmit(e) {
         e.preventDefault();
 
-        this.props.setLoading(true);
-        
         const data = {
             username: this.state.username,
             password: this.state.password,
@@ -36,20 +35,25 @@ class LoginForm extends React.Component {
         
         axios.post('/api/login-user', data)
             .then(response => {
-                this.props.setLoginStatus(response.data.status == 200);
-                this.setState({errors: response.data.errors});
-            })
-            .catch(error => this.props.setLoginStatus(false))
-            .finally(()=>this.props.setLoading(false));
+                if(response.data.status == 200){
+                    this.props.setLoginStatus(response.data.status == 200);
+                } else {
+                    this.setState({errors: response.data.errors});
+                }
+            });
     }
 
     render() {
-
+        console.log("LoginForm.render");
+        console.log(this.state);
+        
         let errorsComponent = "";
 
         if(this.state.errors.length > 0) {
             errorsComponent = (
-                <div className="container errors alert alert-danger">
+                <div
+                  className="container errors alert alert-danger"
+                  style={{marginTop: "1em"}}>
                   {this.state.errors.map((error, i)=><ErrorComponent error={error} i={i}/>)}
                 </div>
             );

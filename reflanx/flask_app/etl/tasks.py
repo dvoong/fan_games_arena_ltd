@@ -1,14 +1,15 @@
 import datetime
-import db
-import models
 from flask import current_app
-from db import query_game_database
+
+import db
+import db.game
+import models
 
 
 def extract_table(table):
     connection = map_destination_table_to_game_database(table)
     sql = map_destination_table_to_sql(table)
-    data = query_game_database(connection, sql)
+    data = db.game.query_database(connection, sql)
     return data
 
 def get_task_status(name):
