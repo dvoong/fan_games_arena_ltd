@@ -285,12 +285,12 @@ class ClientChart extends Chart {
 		"class",
 		d=> {
 		    let filter = that.dauDashboard.filter;
-		    let clientFilterIndex = filter.findIndex(d=>d.name == "client");
+		    let clientFilterIndex = filter.findIndex(d=>d.name === "client");
 		    let barClass = `bar-${this.dauDashboard.clients.indexOf(d.client)}`
 		    
 		    if(clientFilterIndex != -1 &&
 		       filter[clientFilterIndex].values.length > 0 &&
-		       filter[clientFilterIndex].values.indexOf(d.client) == -1) {
+		       filter[clientFilterIndex].values.indexOf(d.client) === -1) {
 			barClass = 'bar-filtered-out'
 		    }
 		    return `bar ${barClass}`
@@ -445,7 +445,7 @@ class DauChart extends Chart {
 		    .attr("cx", x=>this.xScale(x[0]))
 		    .attr("cy", x=>this.yScale(x[1]))
 		    .attr("r", 5)
-		    .attr("opacity", 1)
+		    .attr("opacity", 0)
 		    .on("mouseover", (x, i, circles)=>this.showTooltip(x, i, circles))
 		    .on("mouseout", (x, i, circles)=>this.hideTooltip(x, i, circles))
 
@@ -473,7 +473,7 @@ class DauChart extends Chart {
 
     hideTooltip(d, i, circles) {
 	let circle = d3.select(circles[i]);
-	circle.attr("opacity", 1);
+	circle.attr("opacity", 0);
 	return this.dauDashboard.hideTooltip();
     }
     

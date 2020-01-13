@@ -1,10 +1,63 @@
 import React from 'react';
+import RetentionDashboardComponent from "./dashboards/RetentionDashboardComponent";
+import WeeklyRetentionDashboardComponent from "./dashboards/WeeklyRetentionDashboardComponent";
+import ActivationFunnelDashboardComponent from "./dashboards/ActivationFunnelDashboardComponent";
+import DashboardComponent from "./DashboardComponent";
 
-const Home = ({logoutUser, dauDashboard}) => {
+const Home = ({changeDashboard, data, dashboards, dauDashboard, logoutUser, selectedDashboard}) => {
+    console.log("Home component");
+    console.log("data");
+    console.log(data);
+
+    let dashboardComponent = 'asdf';
+    let dashboardData = data[`${selectedDashboard}Data`];
+    let dashboard = dashboards.filter(d=>d.name === selectedDashboard)[0];
+
+    if(selectedDashboard === "dau-dashboard"){
+        dashboardComponent = <DauDashboard dauDashboard={dauDashboard}/>;
+    } else if (selectedDashboard === "retention-dashboard"){
+	if(data.retentionDashboardData !== undefined){
+            dashboardComponent = <RetentionDashboardComponent data={data.retentionDashboardData}/>;
+	}
+    } else if (selectedDashboard === "weekly-retention-dashboard") {
+	if(data.weeklyRetentionDashboardData !== undefined) {
+	    dashboardComponent = <WeeklyRetentionDashboardComponent
+	                           data={data.weeklyRetentionDashboardData}/>;
+	}
+    } else if (selectedDashboard === "activation-funnel-dashboard") {
+	if(data.activationFunnelDashboardData !== undefined) {
+	    dashboardComponent = <ActivationFunnelDashboardComponent
+	                           data={data.activationFunnelDashboardData}/>;
+	}
+    } else {
+        if(dashboardData !== undefined){
+            dashboardComponent = <DashboardComponent
+                                   data={dashboardData}
+                                   dashboard={dashboard}
+                                 />;
+        }
+    }
+    
     return (
         <div className="App container">
-          <DauDashboard dauDashboard={dauDashboard}/>
+          {dashboardComponent}
           <button className="btn btn-primary" onClick={logoutUser} >Logout</button>
+          {
+              dashboards.map(
+                  d=> {
+                      console.log(d.name);
+                      return (
+                          <button
+                            className="btn btn-primary"
+                            onClick={e=>changeDashboard(d.name)}
+                          >
+                            {d.title}
+                          </button>
+                      );
+                      
+                  }
+              )
+          }
         </div>
     );
 };
@@ -21,11 +74,8 @@ class DauDashboard extends React.Component {
         this.dauDashboard.groupby = this.state.groupby;
     }
 
-    onClientChange() {
-	
-    }
-
     componentDidMount() {
+        console.log("DauDashboard.componentDidMount()");
         this.dauDashboard.initialiseComponents();
         if(this.dauDashboard.data !== undefined){
             this.dauDashboard.draw();

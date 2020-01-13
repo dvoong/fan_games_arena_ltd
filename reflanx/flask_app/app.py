@@ -1,5 +1,5 @@
 import datetime, os, struct
-import bcrypt, pandas as pd, pyodbc, redis, sqlalchemy
+import bcrypt, pandas as pd, psycopg2.sql, pyodbc, redis, sqlalchemy
 import flask_login
 from celery import Celery
 from flask import Flask, request
@@ -17,7 +17,8 @@ from models import DauDashboardData, EtlTask, User
 
 
 app = Flask(__name__)
-app.config['PROJECT_HOME'] = os.environ['FLASK_HOME']
+app.config['PROJECT_HOME'] = os.environ.get('FLASK_HOME', os.getcwd())
+print(app.config['PROJECT_HOME'])
 app.config['SECRET_KEY'] = '6d7566e2-cfed-4709-8d11-080dc1b4d044'
 app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get(
     'SQLALCHEMY_DATABASE_URI',
@@ -52,6 +53,10 @@ app.config['DATABASE_ENGINE'] = sqlalchemy.create_engine(app.config['DATABASE'])
 app.config['WTF_CSRF_ENABLED'] = False if app.config['ENV'] == 'test' else True
 app.config['CELERY_BACKEND'] = os.environ.get('CELERY_BACKEND', 'redis://localhost')
 app.config['CELERY_BROKER'] = os.environ.get('CELERY_BROKER', 'redis://localhost')
+app.config['SQL_DIRECTORY'] = os.environ.get(
+    'SQL_DIRECTORY',
+    '{}/sql'.format(app.config['PROJECT_HOME'])
+)
 
 # celery app
 # celery = Celery('app', backend=app.config['CELERY_BACKEND'], broker=app.config['CELERY_BROKER'])
@@ -182,6 +187,124 @@ def get_dau_data():
     response = utils.to_web_dict(df)
     return response
 
+@app.route('/get-retention-dashboard-data', methods=['GET'])
+@login_required
+def get_retention_data():
+    sql = 'select * from retention_dashboard_data order by date'
+    with db.get_pg_connection() as connection:
+        df = db.query_database(connection, sql)
+    df['date'] = pd.to_datetime(df['date']).dt.strftime('%Y-%m-%d')
+    return utils.to_web_dict(df)
+
+@app.route('/populate-retention-dashboard-data', methods=['GET'])
+@login_required
+def populate_retention_data():
+    filepath = "{}/populate_retention_dashboard_data.sql".format(app.config['SQL_DIRECTORY'])
+    with open(filepath, 'r') as f:
+        sql = str(f.read())
+    with db.get_datawarehouse_connection() as connection:
+        df = db.query_database(connection, sql)
+    with db.get_pg_connection() as connection:
+        sql = '''create table if not exists retention_dashboard_data (
+            date timestamp, 
+            client varchar(100),
+            d1_active_users int,
+            d7_active_users int,
+            d14_active_users int,
+            d28_active_users int,
+            cohort_size int
+        )'''
+        with connection.cursor() as cursor:
+            cursor.execute(sql)
+
+        sql = 'delete from retention_dashboard_data'
+        with connection.cursor() as cursor:
+            cursor.execute(sql)
+
+        sql = 'insert into retention_dashboard_data values (%s, %s, %s, %s, %s, %s, %s)'
+        with connection.cursor() as cursor:
+            cursor.executemany(sql, df.values.tolist())
+
+    return {'status': 200}
+
+@app.route('/get-weekly-retention-dashboard-data', methods=['GET'])
+@login_required
+def get_weekly_retention_data():
+    sql = 'select * from weekly_retention_dashboard_data order by date'
+    with db.get_pg_connection() as connection:
+        df = db.query_database(connection, sql)
+    df['date'] = pd.to_datetime(df['date']).dt.strftime('%Y-%m-%d')
+    return utils.to_web_dict(df)
+
+@app.route('/populate-weekly-retention-dashboard-data', methods=['GET'])
+@login_required
+def populate_weekly_retention_data():
+    filepath = "{}/populate_weekly_retention_dashboard_data.sql".format(app.config['SQL_DIRECTORY'])
+    with open(filepath, 'r') as f:
+        sql = str(f.read())
+    with db.get_datawarehouse_connection() as connection:
+        df = db.query_database(connection, sql)
+    with db.get_pg_connection() as connection:
+        sql = '''create table if not exists weekly_retention_dashboard_data (
+            date timestamp, 
+            client varchar(100),
+            w1_active_users int,
+            w2_active_users int,
+            w3_active_users int,
+            w4_active_users int,
+            cohort_size int
+        )'''
+        with connection.cursor() as cursor:
+            cursor.execute(sql)
+
+        sql = 'delete from weekly_retention_dashboard_data'
+        with connection.cursor() as cursor:
+            cursor.execute(sql)
+
+        sql = 'insert into weekly_retention_dashboard_data values (%s, %s, %s, %s, %s, %s, %s)'
+        with connection.cursor() as cursor:
+            cursor.executemany(sql, df.values.tolist())
+
+    return {'status': 200}
+
+@app.route('/get-activation-funnel-dashboard-data', methods=['GET'])
+@login_required
+def get_activation_funnel_data():
+    sql = 'select * from activation_funnel_dashboard_data order by date'
+    with db.get_pg_connection() as connection:
+        df = db.query_database(connection, sql)
+    df['date'] = pd.to_datetime(df['date']).dt.strftime('%Y-%m-%d')
+    return utils.to_web_dict(df)
+
+@app.route('/populate-activation-funnel-dashboard-data', methods=['GET'])
+@login_required
+def populate_activation_funnel_dashboard_data():
+    filepath = "{}/populate_activation_funnel_dashboard_data.sql".format(app.config['SQL_DIRECTORY'])
+    with open(filepath, 'r') as f:
+        sql = str(f.read())
+    with db.get_datawarehouse_connection() as connection:
+        df = db.query_database(connection, sql)
+    with db.get_pg_connection() as connection:
+        sql = '''create table if not exists activation_funnel_dashboard_data (
+            date timestamp, 
+            client varchar(100),
+            n_new_users int,
+            n_submitted_quiz int,
+            percent float
+        )'''
+        with connection.cursor() as cursor:
+            cursor.execute(sql)
+
+        sql = 'delete from activation_funnel_dashboard_data'
+        with connection.cursor() as cursor:
+            cursor.execute(sql)
+
+        sql = 'insert into activation_funnel_dashboard_data values (%s, %s, %s, %s, %s)'
+        with connection.cursor() as cursor:
+            cursor.executemany(sql, df.values.tolist())
+
+    return {'status': 200}
+
 @app.route('/login-user', methods=['POST'])
 def login_user():
     username = request.json.get('username')
@@ -266,6 +389,59 @@ def populate_database_task():
     with app.app_context():
         return etl.tasks.populate_database()
 
+@app.route('/get-dashboard-data/<dashboard_name>')
+def get_dashboard_data(dashboard_name):
+    table_name = dashboard_name.replace('-', '_')
+    sql = psycopg2.sql.SQL('select * from {}').format(psycopg2.sql.Identifier(table_name))
+    with db.get_pg_connection() as connection:
+        df = db.query_database(connection, sql)
+    if 'date' in df.columns:
+        df['date'] = pd.to_datetime(df['date']).dt.strftime('%Y-%m-%d')
+    return utils.to_web_dict(df)
+
+@app.route('/populate-dashboard-data/<dashboard_name>')
+def populate_dashboard_data(dashboard_name):
+    table_name = dashboard_name.replace('-', '_')
+    filepath_etl = "{}/{}_etl.sql".format(
+        app.config['SQL_DIRECTORY'],
+        table_name
+    )
+    with open(filepath_etl, 'r') as f:
+        sql = str(f.read())
+        
+    with db.get_datawarehouse_connection() as connection:
+        df = db.query_database(connection, sql)
+    filepath_schema = '{}/{}_schema.sql'.format(
+        app.config['SQL_DIRECTORY'],
+        table_name
+    )
+    with open(filepath_schema, 'r') as f:
+        sql = psycopg2.sql.SQL(
+            'create table if not exists {} {}'
+        ).format(
+            psycopg2.sql.Identifier(table_name),
+            psycopg2.sql.SQL(str(f.read()))
+        )
+    with db.get_pg_connection() as connection:
+        with connection.cursor() as cursor:
+            cursor.execute(sql)
+
+        sql = psycopg2.sql.SQL('delete from {}').format(psycopg2.sql.Identifier(table_name))
+        with connection.cursor() as cursor:
+            cursor.execute(sql)
+
+        sql = psycopg2.sql.SQL('insert into {} ({}) values ({})').format(
+            psycopg2.sql.Identifier(table_name),
+            psycopg2.sql.SQL(',').join(map(psycopg2.sql.Identifier, df.columns)),
+            psycopg2.sql.SQL(',').join(psycopg2.sql.Placeholder() * len(df.columns)),
+        )
+
+        with connection.cursor() as cursor:
+            cursor.executemany(sql, df.values.tolist())
+
+    return {'status': 200}
+    
+    
     
 if __name__ == '__main__':
     app.run(debug=True, threaded=True)
