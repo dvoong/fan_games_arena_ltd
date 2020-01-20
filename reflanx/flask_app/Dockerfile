@@ -17,8 +17,8 @@ RUN pip install pyodbc
 RUN pip install redis
 RUN pip install celery
 
-ARG ENV_FILE
-COPY $ENV_FILE .env
+ENV PYTHONPATH "${PYTHONPATH}:/app"
 COPY . .
 
-CMD ["gunicorn", "-b", "0.0.0.0:5000", "app:app"]
+CMD ["./entrypoint.sh"]
+

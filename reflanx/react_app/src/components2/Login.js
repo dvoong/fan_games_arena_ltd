@@ -35,8 +35,8 @@ class LoginForm extends React.Component {
         
         axios.post('/api/login-user', data)
             .then(response => {
-                if(response.data.status == 200){
-                    this.props.setLoginStatus(response.data.status == 200);
+                if(response.data.status === 200){
+                    this.props.setLoginStatus(response.data.status === 200);
                 } else {
                     this.setState({errors: response.data.errors});
                 }
@@ -68,7 +68,7 @@ class LoginForm extends React.Component {
                     className="form-control"
                     id="username"
                     name="username"
-                    onChange={(e)=>this.state.username=e.target.value}
+                    onChange={(e)=>this.setState({username:e.target.value})}
                     required
                   />
                 </div>
@@ -78,7 +78,7 @@ class LoginForm extends React.Component {
                     className="form-control"
                     id="password"
                     name="password"
-                    onChange={(e)=>this.state.password=e.target.value}
+                    onChange={(e)=>this.setState({password:e.target.value})}
                     type="password"
                     required
                   />

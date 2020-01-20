@@ -1,0 +1,33 @@
+FROM python:3
+
+WORKDIR app
+
+RUN apt-get update
+RUN apt-get install unixodbc -y
+RUN apt-get install unixodbc-dev -y
+
+RUN pip install celery
+RUN pip install pyodbc
+RUN pip install redis
+RUN pip install bcrypt
+RUN pip install pandas
+RUN pip install psycopg2
+RUN pip install sqlalchemy
+RUN pip install flask_login
+RUN pip install flask_wtf
+
+RUN apt-get install gettext -y
+RUN apt-get install gperf
+
+RUN git clone https://github.com/FreeTDS/freetds.git
+WORKDIR freetds
+RUN ./autogen.sh  
+RUN make
+RUN make install
+RUN make clean
+WORKDIR /app
+
+ENV PYTHONPATH "${PYTHONPATH}:/app"
+COPY . .
+
+CMD ["celery", "worker", "-A", "app.celery", "--loglevel", "info", "--max-memory-per-child", "8000000"]

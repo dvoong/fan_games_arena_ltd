@@ -1,7 +1,6 @@
-import axios from 'axios';
 import React from "react";
-import { Link, NavLink, Route, BrowserRouter as Router } from "react-router-dom";
-import {Nav, Navbar, NavDropdown, Form, FormControl, Button} from 'react-bootstrap';
+import { NavLink } from "react-router-dom";
+import {Nav, Navbar, NavDropdown} from 'react-bootstrap';
 import LogoutButton from "./LogoutButton";
 
 
@@ -17,9 +16,9 @@ const DashboardsDropdown = ({setDashboard}) => {
           
           <NavDropdown.Item
             as={NavLink}
-            onClick={()=>setDashboard("loading-funnel")}
-            to="/dashboards/loading-funnel">
-            Loading Funnel Dashboard
+            onClick={()=>setDashboard("activation-funnel")}
+            to="/dashboards/activation-funnel">
+            Activation Funnel Dashboard
           </NavDropdown.Item>
           
           <NavDropdown.Item
@@ -57,9 +56,5 @@ const MyNavbar = ({dashboard, isLoggedIn, setDashboard, setLoginStatus}) => {
     );
 };
 
-const Title = ({ match }) => {
-    return match.params.dashboardId;
-    // get 
-};
 
 export default MyNavbar;

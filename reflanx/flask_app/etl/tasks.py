@@ -3,13 +3,22 @@ from flask import current_app
 
 import db
 import db.game
+import db.data_warehouse
 import models
+import pipeline.game
 
+
+def drop_table(table):
+    with db.data_warehouse.get_connection() as connection:
+        with connection.cursor() as cursor:
+            sql = f'''drop table {table}'''
+            cursor.execute(sql)
 
 def extract_table(table):
     connection = map_destination_table_to_game_database(table)
     sql = map_destination_table_to_sql(table)
-    data = db.game.query_database(connection, sql)
+    extractor = pipeline.game.Extractor()
+    data = extractor.extract(connection, sql)
     return data
 
 def get_task_status(name):
@@ -18,20 +27,18 @@ def get_task_status(name):
     return None if task is None else task.status
 
 def insert_table(data, table):
-    engine = db.get_datawarehouse_alchemy_engine()
-    return data.to_sql(table, engine, if_exists='replace', index=False)
+    engine = db.data_warehouse.get_alchemy_engine()
+    return data.to_sql(table, engine, if_exists='append', index=False)
 
 def map_destination_table_to_game_database(table):
     if table in ['devices', 'users']:
-        return db.get_game_database_connection(
-            current_app.config['GAME_USER_DATABASE']
-        )
+        database_name = 'users'
     elif table == 'events':
-        return db.get_game_database_connection(
-            current_app.config['GAME_LOGS_DATABASE']
-        )
+        database_name = 'logs'
     else:
         raise Exception('unrecognised table: {}'.format(table))
+    connection = db.game.get_connection(database_name)
+    return connection
 
 def map_destination_table_to_sql(table):
     project_home = current_app.config['PROJECT_HOME']
@@ -53,11 +60,16 @@ def populate_database():
 def populate_table(table):
     start = datetime.datetime.now()
     data = extract_table(table)
-    insert_table(data, table)
+    n_rows = 0
+    drop_table(table)
+    for i, batch in enumerate(data):
+        print(f'populate_table({table}).batch:', i)
+        insert_table(batch, table)
+        n_rows = n_rows + len(batch)
     end = datetime.datetime.now()
     return {
         'table': table,
         'status': 'SUCCESS',
-        'n_rows': len(data),
+        'n_rows': n_rows,
         'time_taken': (end - start).total_seconds(),
     }

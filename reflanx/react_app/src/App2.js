@@ -1,14 +1,12 @@
 import axios from 'axios';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import React from "react";
-import { Link, Route, Redirect, BrowserRouter as Router } from "react-router-dom";
-import memoize from "memoize-one";
+import { Route, Redirect, BrowserRouter as Router } from "react-router-dom";
 
 import './App2.css';
-import DashboardSelector from "./components2/DashboardSelector";
 import LoginForm from "./components2/Login";
-import LogoutButton from "./components2/LogoutButton";
 import Navbar from "./components2/Navbar";
+import ActivationFunnelDashboard from "./components2/ActivationFunnelDashboard";
 
 import * as d3 from "d3";
 
@@ -139,15 +137,17 @@ class DauChart extends React.Component {
             .join("g")
             .attr("class", "plot-group");
 
-        let circles = plotGroups
+        plotGroups
             .selectAll("circle")
             .data((d, i)=>d.values.map(v=>({...v, groupKey: d.groupKey, index: i})))
             .join("circle")
             .attr("class", d=>`bar-${d.index}`)
+            .attr("r", 5)
+            .on("mouseover", d=>this.props.tooltip.show(`${d.date.toLocaleDateString()}: ${d.dau}`))
+            .on("mouseout", d=>this.props.tooltip.hide())
             .transition()
             .attr("cx", d=>this.xAxis.scale(d.date))
-            .attr("cy", d=>this.yAxis.scale(d.dau))
-            .attr("r", 5);
+            .attr("cy", d=>this.yAxis.scale(d.dau));
 
         plotGroups.selectAll(".plot-line")
             .data(data)
@@ -259,7 +259,6 @@ class DauByTenureTypeChart extends React.Component {
     draw() {
         console.log("DauByTenureTypeChart.draw()");
 
-        let that = this;
         let datasetRegistry = this.props.datasetRegistry;
         let dataset = datasetRegistry["dau-data"];
         // aggregate
@@ -300,9 +299,9 @@ class DauByTenureTypeChart extends React.Component {
                 (d,i)=>{
                     let className = `bar bar-${i}`;
                     let filterIndex = this.props.filters.map(f=>f.variable).indexOf("tenureType");
-                    if(filterIndex != -1) {
+                    if(filterIndex !== -1) {
                         let filter = this.props.filters[filterIndex];
-                        if(filter.values.indexOf(d.tenureType) == -1) {
+                        if(filter.values.indexOf(d.tenureType) === -1) {
                             className += " muted-row";
                         }
                     }
@@ -394,7 +393,6 @@ class DauByClientChart extends React.Component {
     draw() {
         console.log("DauByClientChart.draw()");
 
-        let that = this;
         let datasetRegistry = this.props.datasetRegistry;
         let dataset = datasetRegistry["dau-data"];
         // aggregate
@@ -439,11 +437,11 @@ class DauByClientChart extends React.Component {
                     console.log(this.props.filters);
                     let filterIndex = this.props.filters.map(f=>f.variable).indexOf("client");
                     console.log(filterIndex);
-                    if(filterIndex != -1) {
+                    if(filterIndex !== -1) {
                         let filter = this.props.filters[filterIndex];
                         console.log("filter");
                         console.log(d.client);
-                        if(filter.values.indexOf(d.client) == -1) {
+                        if(filter.values.indexOf(d.client) === -1) {
                             className += " muted-row";
                         }
                     }
@@ -521,8 +519,10 @@ class Dataset {
                         newData.values[rowNumber][filterIndices[i]] = new Date(
                             data.values[rowNumber][filterIndices[i]]
                         );
+                        return null;
                     }
                 );
+                return null;
             }
         );
         return newData;
@@ -540,14 +540,14 @@ class Dataset {
 
 class DauDataset extends Dataset {
     name = "dau-data";
-    apiEndpoint = "/api/get-dau-data";
+    apiEndpoint = "/api/get-dashboard-data/dau";
     datetimeVariables = ["analysisTime", "date"];
 
     filter(variable, value) {
         let index = this.headerIndex(variable);
         let filteredValues = this.data.values.filter(
             row=>{
-                return row[index] == value;
+                return row[index] === value;
             }
         );
         let filteredData = {...this.data, values: filteredValues};
@@ -558,12 +558,16 @@ class DauDataset extends Dataset {
 
 class Tooltip {
     
-    element = d3.select(".tooltip")
-    
-    hide = () => this.element.style("opacity", 0)
+    hide = () => {
+        console.log("Tooltip.hide");
+        let element = d3.select(".tooltip");
+        element.style("opacity", 0);
+    }
     
     show = (data) => {
-        this.element
+        console.log("Tooltip.show");
+        let element = d3.select(".tooltip");        
+        element
             .html(data)
             .style("left", (d3.event.pageX) + "px")
             .style("top", (d3.event.pageY - 28) + "px")
@@ -579,17 +583,13 @@ class DauDashboard extends React.Component {
         filters: [],
         groupby: null,
     };
-
-    componentDidMount() {
-        this.tooltip = new Tooltip();
-    }
-        
     
     constructor(props) {
         super(props);
 
         this.setGroupBy = this.setGroupBy.bind(this);
         this.toggleFilter = this.toggleFilter.bind(this);
+        this.tooltip = new Tooltip();
 
         // get data based on what the groupby is
         this.datasets.map(
@@ -597,6 +597,7 @@ class DauDashboard extends React.Component {
                 if(!(d.name in this.props.data)){
                     this.props.getDataset(d);
                 }
+                return null;
             }
         );
     }
@@ -614,7 +615,7 @@ class DauDashboard extends React.Component {
                         let variableIndex = dataset.headerIndex(f.variable);
                         let passesFilter = f.values.reduce(
                             (accFilterValues, fv) => {
-                                let matchesValue =  row[variableIndex] == fv;
+                                let matchesValue =  row[variableIndex] === fv;
                                 return accFilterValues || matchesValue;
                             },
                             false
@@ -663,6 +664,7 @@ class DauDashboard extends React.Component {
                         if(value !== undefined){
                             accGroups[[value]] = true;
                         }
+                        return null;
                     },
                     {}
                 );
@@ -753,7 +755,7 @@ class DauDashboard extends React.Component {
             let values = filter.values;
             let valueIndex = values.indexOf(value);
             if(valueIndex !== -1){
-                values = values.filter(v=>v!=value);
+                values = values.filter(v=>v!==value);
             } else {
                 values = [...values, value];
             }
@@ -767,13 +769,6 @@ class DauDashboard extends React.Component {
     }
 };
 
-const LoadingFunnelDashboard = () => {
-    return "loadingFunnelDashboard";
-};
-
-const RevenueDashboard = () => {
-    return "revenueDashboard";
-};
 
 const LoadingScreen = ({loading}) => {
     return loading ? <div>Loading...</div> : "";
@@ -783,7 +778,7 @@ class App extends React.Component {
 
     constructor(props) {
         super(props);
-        let url = window.location.href.replace(/^(?:\/\/|[^\/]+)*\//, "");
+        let url = window.location.href.replace(/^(?:\/\/|[^]+)*\//, "");
         let match = url.match(/(?<=dashboards\/).+/);
         let dashboardName = match ? match[0] : null;
         
@@ -792,14 +787,14 @@ class App extends React.Component {
                 title: "DAU",
                 component: DauDashboard
             },
-            "loading-funnel": {
-                title: "Loading Funnel",
-                component: LoadingFunnelDashboard
+            "activation-funnel": {
+                title: "Activation Funnel",
+                component: ActivationFunnelDashboard
             },
-            revenue: {
-                title: "Revenu",
-                component: RevenueDashboard
-            },
+            // revenue: {
+            //     title: "Revenu",
+            //     component: RevenueDashboard
+            // },
         };
 
         let dashboard = null; 
@@ -845,7 +840,7 @@ class App extends React.Component {
 
     getDataset(dataset) {
         console.log("App.getDataset()");
-        if(!dataset.name in this.state.data) {
+        if(dataset.name in this.state.data) {
             return this.state.data[[dataset.name]];
         } else {
             return dataset.getDataset().then(
