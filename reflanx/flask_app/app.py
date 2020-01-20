@@ -14,7 +14,7 @@ import etl, models
 import etl.tasks
 import utils
 import db.alchemy
-from models import DauDashboardData, EtlTask, User
+from models import EtlTask, User
 
 
 app = Flask(__name__)

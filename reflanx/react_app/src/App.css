@@ -26,7 +26,17 @@
     font-size: 1em;
 }
 
-.line {
+.filtered-row {
+    color: grey;
+    opacity: 0.2;
+}
+
+.muted-row {
+    color: grey;
+    opacity: 0.2;
+}
+
+.plot-line {
   fill: none;
   stroke: steelblue;
   stroke-width: 2px;
