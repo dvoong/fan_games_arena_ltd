@@ -17,8 +17,8 @@ class User(UserMixin, Base):
 
 class EtlTask(Base):
     __tablename__ = 'etl_task'
-    id = Column(UUID(as_uuid=True))
-    name = Column(String, primary_key=True)
+    id = Column(UUID(as_uuid=True), primary_key=True)
+    name = Column(String)
     created_at = Column(DateTime)
     finished_at = Column(DateTime, nullable=True)
 

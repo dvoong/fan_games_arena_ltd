@@ -26,14 +26,35 @@
     font-size: 1em;
 }
 
+.dashboard-controller {
+    /* border: 2px solid darkgrey; */
+    border-radius: 0.5em;
+    margin-left: 1em;
+    margin-top: 1em;
+    margin-right: 1em;
+    margin-bottom: 3em;
+    padding-top: 1em;
+    padding-left: 1em;
+    padding-right: 1em;
+    padding-bottom: 1em;
+}
+
 .filtered-row {
-    color: grey;
-    opacity: 0.2;
+    fill: grey;
+    opacity: 0.1;
 }
 
 .muted-row {
     color: grey;
     opacity: 0.2;
+}
+
+.navbar-title {
+    left: 0;
+    margin: auto;
+    width: 100%;
+    text-align: center;
+    position: absolute;
 }
 
 .plot-line {
@@ -63,7 +84,6 @@
 }
 
 .bar {
-  fill: steelblue;
   stroke: none;
 }
 

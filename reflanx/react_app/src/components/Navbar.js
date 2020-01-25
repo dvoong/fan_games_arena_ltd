@@ -1,57 +1,40 @@
 import React from "react";
-import { NavLink } from "react-router-dom";
 import {Nav, Navbar, NavDropdown} from 'react-bootstrap';
 import LogoutButton from "./LogoutButton";
 
 
 const DashboardsDropdown = ({setDashboard}) => {
     return (
+        
         <NavDropdown title="Dashboards" id="basic-nav-dropdown">
-          <NavDropdown.Item
-            as={NavLink}
-            onClick={()=>setDashboard("dau")}
-            to="/dashboards/dau">
+          <NavDropdown.Item onClick={()=>setDashboard("dau-dashboard")}>
             DAU Dashboard
           </NavDropdown.Item>
           
-          <NavDropdown.Item
-            as={NavLink}
-            onClick={()=>setDashboard("activation-funnel")}
-            to="/dashboards/activation-funnel">
+          <NavDropdown.Item onClick={()=>setDashboard("activation-funnel")}>
             Activation Funnel Dashboard
           </NavDropdown.Item>
           
-          <NavDropdown.Item
-            as={NavLink}
-            onClick={()=>setDashboard("revenue")}
-            to="/dashboards/revenue">
+          <NavDropdown.Item onClick={()=>setDashboard("revenue")}>
             Revenue Dashboard
           </NavDropdown.Item>
-          
         </NavDropdown>
     );
 };
       
 
-const MyNavbar = ({dashboard, isLoggedIn, setDashboard, setLoginStatus}) => {
-
+const MyNavbar = ({loggedIn, setDashboard, setLoggedIn, title}) => {
     return (
         <Navbar bg="light" expand="lg">
           <Navbar.Brand href="#home">Fan Games Arena Data Analytics</Navbar.Brand>
           <Navbar.Toggle aria-controls="basic-navbar-nav" />
+          <div className="navbar-title">{title}</div>
           <Navbar.Collapse id="basic-navbar-nav">
-
             <Nav className="ml-auto">
-              {dashboard ? dashboard.title : ""}
+              {loggedIn ? <DashboardsDropdown setDashboard={setDashboard} /> : ""}
+              {loggedIn ? <LogoutButton setLoggedIn={setLoggedIn} /> : ""}
             </Nav>
-            
-            <Nav className="ml-auto">
-              {isLoggedIn ? <DashboardsDropdown setDashboard={setDashboard} /> : ""}
-              {isLoggedIn ? <LogoutButton setLoginStatus={setLoginStatus} /> : ""}
-            </Nav>
-            
           </Navbar.Collapse>
-        
         </Navbar>
     );
 };

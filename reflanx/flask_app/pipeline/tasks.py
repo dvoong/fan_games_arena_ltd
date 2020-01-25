@@ -42,7 +42,7 @@ def map_destination_table_to_game_database(table):
 
 def map_destination_table_to_sql(table):
     project_home = current_app.config['PROJECT_HOME']
-    file_path = '{}/etl/sql/{}.sql'.format(
+    file_path = '{}/pipeline/sql/{}.sql'.format(
         project_home,
         table,
     )

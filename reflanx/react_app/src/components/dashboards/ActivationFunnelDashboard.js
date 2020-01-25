@@ -1,6 +1,6 @@
 import React from "react";
 import * as d3 from "d3";
-import ActivationFunnel from "../datasets/ActivationFunnel";
+import ActivationFunnel from "../../datasets/ActivationFunnel";
 import Dashboard from "./Dashboard";
 
 

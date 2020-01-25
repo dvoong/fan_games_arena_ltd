@@ -25,15 +25,17 @@ with events_ as (
 ), results as (
     select
         ts::date as date,
-        client,
-        case when
-            events_.ts::date = users_.created_at::date then 'new'
-            else 'existing'
+	coalesce(client, 'Unknown') as client,
+        case
+	    when events_.ts::date = users_.created_at::date then 'new'
+            when events_.ts::date > users_.created_at::date then 'existing'
+	    else 'unknown'
         end as tenure_type,
         count(distinct user_id) as dau
         
-    from events_ join users_ using (user_id)
-        join devices_ using (device_id)
+    from events_
+    	 left join users_ using (user_id)
+	 left join devices_ using (device_id)
     
     group by 1, 2, 3
     

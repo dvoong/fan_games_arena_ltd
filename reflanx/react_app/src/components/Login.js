@@ -12,16 +12,17 @@ const ErrorComponent = ({error, i}) => {
 
 class LoginForm extends React.Component {
 
-    constructor(props) {
-        console.log("LoginForm.constructor");
-	super(props);
-        this.state = {
-            errors: [],
-            password: "",
-            username: "",
-        };
-
+    state = {
+        errors: [],
+        password: "",
+        username: "",
+    };
+    
+    constructor({setLoggedIn, ...props}) {
+	console.log("LoginForm.constructor");
+    	super(props);
         this.onSubmit = this.onSubmit.bind(this);
+	this.setLoggedIn = setLoggedIn;
     }
 
     onSubmit(e) {
@@ -30,13 +31,13 @@ class LoginForm extends React.Component {
         const data = {
             username: this.state.username,
             password: this.state.password,
-            headers: {"X-CSRFTOKEN": this.props.csrftoken},
+            // headers: {"X-CSRFTOKEN": this.props.csrftoken},
         };
         
         axios.post('/api/login-user', data)
             .then(response => {
                 if(response.data.status === 200){
-                    this.props.setLoginStatus(response.data.status === 200);
+                    this.setLoggedIn(response.data.status === 200);
                 } else {
                     this.setState({errors: response.data.errors});
                 }
