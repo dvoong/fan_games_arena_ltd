@@ -1,6 +1,6 @@
 import * as d3 from "d3";
 import React from "react";
-import dauDataset from "../../datasets";
+import { dauDataset } from "../../datasets";
 
 
 class DauChart extends React.Component {
@@ -51,6 +51,9 @@ class DauChart extends React.Component {
             "transform",
             `translate(${this.legend.x}, ${this.legend.y})`
         );
+
+	this.props.registerDatasets(this.datasets);
+	
     }
 
     componentDidUpdate() {
@@ -90,7 +93,6 @@ class DauChart extends React.Component {
 	console.log("DauChart.constructor()");
 	super(props);
 
-	this.props.registerDatasets(this.datasets);
     }
 
     draw() {
@@ -187,22 +189,15 @@ class DauChart extends React.Component {
 
         circles.exit().remove();
 
-        let mouseOvers = plotGroups.selectAll(".mouse-overs")
+	const toString = d => `${d.date.toLocaleDateString()}: ${d.dau}`;
+        plotGroups.selectAll(".mouse-overs")
             .data(d=>d.values)
             .join("circle")
             .attr("class", "mouse-overs")
             .attr("cx", d=>this.xAxis.scale(d.date))
             .attr("cy", d=>this.yAxis.scale(d.dau))
             .attr("r", 15)
-            .on(
-                "mouseover",
-                d=>{
-                    console.log("mouseover");
-                    this.props.tooltip.show(
-                        `${d.date.toLocaleDateString()}: ${d.dau}`
-                    );
-                }
-            )
+            .on("mouseover",d=>this.props.tooltip.show(toString(d)))
             .on("mouseout", d=>this.props.tooltip.hide())
             .style("opacity", 0);
 

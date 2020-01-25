@@ -2,6 +2,8 @@ version: '3'
 services:
   api:
     build: ./reflanx/flask_app
+    depends_on:
+      - db
     env_file: ./reflanx/flask_app/.env
     environment:
       - APP_DATABASE=postgresql://postgres@db/postgres
@@ -13,6 +15,8 @@ services:
     build:
       context: ./reflanx/flask_app
       dockerfile: Dockerfile-celery
+    depends_on:
+      - redis
     env_file: ./reflanx/flask_app/.env
     environment:
       - APP_DATABASE=postgresql://postgres@db/postgres
@@ -28,6 +32,8 @@ services:
     image: redis
   web:
     build: ./reflanx/react_app
+    depends_on:
+      - api
     ports:
       - ${PORT:-8001}:80
 

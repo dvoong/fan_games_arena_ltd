@@ -1,11 +1,35 @@
 import datetime
 from flask import current_app
+import pandas as pd
 
 import db
 import db.game
 import db.data_warehouse
 import models
-import pipeline.game
+
+
+class Extractor:
+
+    def __init__(self, batch_size=20000):
+        self.batch_size = batch_size
+
+    def extract(self, connection, sql, *args, **kwargs):
+        with connection.cursor() as cursor:
+            cursor.execute(sql, *args, **kwargs)
+            i = 0
+            rows = cursor.fetchmany(self.batch_size)
+            total = len(rows)
+            while rows != None and len(rows) != 0:
+                print(f'batch: {i}')
+                print(f'n_rows: {len(rows)}')
+                print(f'total: {total}')
+                rows = [list(r) for r in rows]
+                columns = [c[0] for c in cursor.description]
+                df = pd.DataFrame(rows, columns=columns)
+                yield df
+                i = i + 1
+                rows = cursor.fetchmany(self.batch_size)
+                total += len(rows)
 
 
 def drop_table(table):
@@ -17,7 +41,7 @@ def drop_table(table):
 def extract_table(table):
     connection = map_destination_table_to_game_database(table)
     sql = map_destination_table_to_sql(table)
-    extractor = pipeline.game.Extractor()
+    extractor = Extractor()
     data = extractor.extract(connection, sql)
     return data
 
@@ -42,7 +66,7 @@ def map_destination_table_to_game_database(table):
 
 def map_destination_table_to_sql(table):
     project_home = current_app.config['PROJECT_HOME']
-    file_path = '{}/pipeline/sql/{}.sql'.format(
+    file_path = '{}/pipeline/game/sql/{}.sql'.format(
         project_home,
         table,
     )

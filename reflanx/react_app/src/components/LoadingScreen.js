@@ -1,8 +1,8 @@
 import React from "react";
 
 
-const LoadingScreen = ({loading}) => {
-    return loading ? <div>Loading...</div> : "";
+const LoadingScreen = () => {
+    return <div>Loading...</div>;
 };
 
 export default LoadingScreen;

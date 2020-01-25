@@ -2,10 +2,10 @@ import db
 import db.data_warehouse
 import psycopg2.sql
 
-def populate_dataset(dataset_name):
+def cache_dataset(dataset_name):
     table_name = dataset_name.replace('-', '_')
     filepath_etl = "{}/{}_query.sql".format(
-        'pipeline/datasets/sql',
+        'pipeline/internal/sql',
         table_name
     )
     with open(filepath_etl, 'r') as f:
@@ -16,7 +16,7 @@ def populate_dataset(dataset_name):
     with db.data_warehouse.get_connection() as connection:
         df = db.data_warehouse.query_database(connection, sql)
     filepath_schema = '{}/{}_schema.sql'.format(
-        'pipeline/datasets/sql',
+        'pipeline/internal/sql',
         table_name
     )
 

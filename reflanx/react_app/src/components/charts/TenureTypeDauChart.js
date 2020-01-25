@@ -1,6 +1,6 @@
 import * as d3 from "d3";
 import React from "react";
-import dauDataset from "../../datasets";
+import { dauDataset } from "../../datasets";
 
 
 class TenureTypeDauChart extends React.Component {
@@ -89,7 +89,6 @@ class TenureTypeDauChart extends React.Component {
         this.yAxis.element.transition().call(d3.axisLeft(this.yAxis.scale));
 
         const getClass = (d, i) => {
-	    console.log("getClass");
             let className = `bar`;
             let filters = this.props.filters;
             let filter = this.props.filters.find(f=>f.variable === "tenureType");

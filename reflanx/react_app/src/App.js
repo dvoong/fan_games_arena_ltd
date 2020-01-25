@@ -7,17 +7,19 @@ import LoginForm from "./components/Login";
 import Navbar from "./components/Navbar";
 // import ActivationFunnelDashboard from "./components/dashboards/ActivationFunnelDashboard";
 import DauDashboard from "./components/dashboards/DauDashboard";
+import LoadingFunnelDashboard from "./components/dashboards/LoadingFunnelDashboard";
 import LoadingScreen from "./components/LoadingScreen";
 
 
 class App extends React.Component {
 
     dashboards = [
-        {name: "dau-dashboard", title: "DAU Dashboard"}
+        {name: "dau-dashboard", title: "DAU Dashboard"},
+	{name: "loading-funnel", title: "Loading Funnel"},
     ]
 
     state = {
-        dashboard: "dau-dashboard",
+        dashboard: this.dashboards[0],
         datasetRegistry: {},
         errors: [],
         loading: true,
@@ -91,34 +93,49 @@ class App extends React.Component {
             {datasetRegistry: datasetRegistry, loading: false}
         );
 
+        console.log("setState");
+        this.setState({loading: true});
+
         datasets.forEach(
             dataset => checkRegistry(dataset)
                 ? dequeueDataset(dataset)
                 : new Promise((resolve, reject)=>resolve(1))
-                .then(()=>this.state.loading === false ? setLoading() : null)
                 .then(()=>fetchData(dataset))
                 .then(dataset=>processDataset(dataset))
                 .then(dataset=>updateRegistry(dataset))
                 .then(registry=>dequeueDataset(dataset))
                 .then(queue => queue.length === 0)
                 .then(status => status ? updateState() : null)
-                .catch(error => this.setState({errors: [...this.state.errors, error]}))
+                .catch(error => this.setState({
+                    errors: [...this.state.errors, error],
+                }))
         );
+
+        let datasetsLoaded = datasets.reduce(
+            (acc, dataset) => acc && checkRegistry(dataset),
+            true
+        );
+        
+        if(datasetsLoaded){
+            this.setState({loading: false});
+        }
+        
     }
     
     render() {
 	console.log("App.render");
         console.log(this.state);
 
-        let dashboard = this.dashboards.find(d=>d.name === this.state.dashboard);
+        let dashboard = this.dashboards.find(d=>d === this.state.dashboard);
         let title = dashboard !== undefined
             ? dashboard.title
             : `Unrecognised dashboard: ${this.state.dashboard}`;
         let navbar = <Navbar
-                       title={title}
+	               dashboards={this.dashboards}
                        loggedIn={this.state.loggedIn}
                        setDashboard={this.setDashboard}
                        setLoggedIn={this.setLoggedIn}
+                       title={title}
                      />;
 
         let loadingScreen = <LoadingScreen />;
@@ -128,12 +145,23 @@ class App extends React.Component {
         if(this.state.loggedIn === null) {
         } else if(this.state.loggedIn === false) {
             mainComponent = <LoginForm setLoggedIn={this.setLoggedIn}/>;
-        } else if (this.state.dashboard === "dau-dashboard") {
+        } else if (this.state.dashboard.name === "dau-dashboard") {
             mainComponent = <DauDashboard
                               datasetRegistry={this.state.datasetRegistry}
                               getDatasets={this.getDatasets}
                             />;
+        } else if (this.state.dashboard.name === "loading-funnel") {
+            mainComponent = <LoadingFunnelDashboard
+                              datasetRegistry={this.state.datasetRegistry}
+                              getDatasets={this.getDatasets}
+                            />;
         }
+
+
+    //             mainComponent = React.createElement(
+    //                 this.state.dashboard.component,
+    //                 {data: this.state.data, getDataset: this.getDataset}
+    //             );
         
 	return (
 	    <div>

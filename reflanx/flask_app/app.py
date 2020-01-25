@@ -14,7 +14,8 @@ import db.data_warehouse
 import models
 import utils
 import pipeline
-import pipeline.tasks
+import pipeline.game
+import pipeline.internal
 from models import EtlTask, User
 
 
@@ -75,7 +76,7 @@ def check_login_status():
 def cache_dataset(dataset_name):
     dataset_name = dataset_name.replace('-', '_')
     now = datetime.datetime.now()
-    async_result = populate_dataset_task.delay(dataset_name)
+    async_result = cache_dataset_task.delay(dataset_name)
     session = db.alchemy.get_session()
     task = models.EtlTask(
         id=async_result.id,
@@ -97,7 +98,7 @@ def get_dataset(dataset_name):
     with db.app.get_connection() as connection:
         df = db.app.query_database(connection, sql, [table_name])
     if len(df) == 0:
-        pipeline.populate_dataset(dataset_name)
+        pipeline.internal.cache_dataset(dataset_name)
     
     sql = psycopg2.sql.SQL('select * from {}').format(psycopg2.sql.Identifier(table_name))
     with db.app.get_connection() as connection:
@@ -132,31 +133,15 @@ def logout_user():
 
 @app.route('/populate-database', methods=['GET', 'POST'])
 def populate_database():
-    force_update = 'force-update' in request.args
+    async_result = populate_database_task.delay()
     session = db.alchemy.get_session()
-    task = session.query(models.EtlTask).get('populate_database')
-    if task == None:
-        async_result = populate_database_task.delay()
-        task = EtlTask(
-            id=async_result.id,
-            name='populate_database',
-            created_at=datetime.datetime.now(),
-        )
-        session.add(task)
-        session.commit()
-    else:
-        if task.status == 'SUCCESS' or force_update is True:
-            session = db.alchemy.get_session()
-            existing_task = session.query(EtlTask).get('populate_database')
-            session.delete(existing_task)
-            async_result = populate_database_task.delay()
-            task = EtlTask(
-                id=async_result.id,
-                name='populate_database',
-                created_at=datetime.datetime.now()
-            )
-            session.add(task)
-            session.commit()
+    task = EtlTask(
+        id=async_result.id,
+        name='populate_database',
+        created_at=datetime.datetime.now(),
+    )
+    session.add(task)
+    session.commit()
     return {
         'status': task.status,
         'taskId': task.id,
@@ -164,16 +149,20 @@ def populate_database():
     }
 
 @celery.task
+def cache_dataset_task(dataset_name):
+    print('cache_dataset_task_id')
+    with app.app_context():
+        return pipeline.cache_dataset(dataset_name)
+
+@celery.task
 def populate_database_task():
     print('populate_database_task_id')
     with app.app_context():
-        return pipeline.tasks.populate_database()
+        return pipeline.game.populate_database()
+    
+if __name__ == '__main__':
+    app.run(debug=True, threaded=True)
 
-@celery.task
-def populate_dataset_task(dataset_name):
-    print('populate_dataset_task_id')
-    with app.app_context():
-        return pipeline.populate_dataset(dataset_name)
 
 # @app.route('/get-dashboard-data/<dashboard_name>')
 # def get_dashboard_data(dashboard_name):
@@ -349,6 +338,3 @@ def populate_dataset_task(dataset_name):
 
 #     return {'status': 200}
     
-    
-if __name__ == '__main__':
-    app.run(debug=True, threaded=True)

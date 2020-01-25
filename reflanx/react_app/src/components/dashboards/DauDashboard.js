@@ -1,21 +1,25 @@
 import * as d3 from "d3";
 import React from "react";
+
 import ClientDauChart from "../charts/ClientDauChart";
+import Dashboard from "./Dashboard";
 import DauChart from "../charts/DauChart";
 import TenureTypeDauChart from "../charts/TenureTypeDauChart";
 
 
-class DauDashboard extends React.Component {
+class DauDashboard extends Dashboard {
 
     colours = {
         client: {
             Android: "indianred",
             iOS: "aquamarine",
-            na: "coral",
+            na: "pink",
+            Unknown: "coral",
         },
         tenureType: {
             new: "indianred",
             existing: "aquamarine",
+            unknown: "coral"
         }
     }
     
@@ -46,15 +50,6 @@ class DauDashboard extends React.Component {
         this.registerDatasets = this.registerDatasets.bind(this);
         this.setGroupby = this.setGroupby.bind(this);
         this.toggleFilter = this.toggleFilter.bind(this);
-    }
-    
-    registerDatasets(datasets) {
-        console.log("registerDatasets()");
-        console.log(datasets);
-        datasets.forEach(
-            dataset=>dataset in this.datasets
-                ? null
-                : this.datasets.push(dataset));
     }
     
     filterDataset(dataset) {
@@ -88,7 +83,7 @@ class DauDashboard extends React.Component {
         console.log(this.props.datasetRegistry);
         let datasetRegistry = Object.values(this.props.datasetRegistry).reduce(
             (acc, dataset) => {
-                if(this.datasets.find(d => d.name === dataset.name) === undefined){
+                if(this.datasets.find(d =>d.name === dataset.name) === undefined){
                     return acc;
                 }
                 acc[dataset.name] = this.filterDataset(dataset);
@@ -181,6 +176,16 @@ class DauDashboard extends React.Component {
         let groupKeys = getGroupKeys(datasetRegistry, this.state.groupby);
         let groups = getGroups(datasetRegistry, this.state.groupby, groupKeys);
         return groups;
+    }
+    
+    registerDatasets(datasets) {
+        console.log("Dashboard.registerDatasets()");
+        console.log(datasets);
+        datasets.forEach(
+            dataset=>this.datasets.find(d=>d === dataset) === undefined
+                ? this.datasets.push(dataset)
+                : null
+        );
     }
 
     render() {

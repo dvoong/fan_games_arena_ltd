@@ -1,6 +1,6 @@
 import * as d3 from "d3";
 import React from "react";
-import dauDataset from "../../datasets";
+import { dauDataset } from "../../datasets";
 
 
 class ClientDauChart extends React.Component {

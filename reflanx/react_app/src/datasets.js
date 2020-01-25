@@ -3,5 +3,8 @@ let dauDataset = {
     datetimeVariables: ["date"],
 };
 
+let loadingFunnelDataset = {
+    name: "loading-funnel-dataset",
+}
 
-export default dauDataset;
+export {dauDataset, loadingFunnelDataset};
